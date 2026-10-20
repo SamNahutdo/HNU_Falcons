@@ -61,7 +61,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
             {/* LOGO */}
             <div className="text-center mb-3">
               <img
-                src="/images/Logo.png"
+                src={`${import.meta.env.BASE_URL}images/Logo.png`}
                 alt="Falcon Athletics Logo"
                 style={{ maxHeight: '72px', objectFit: 'contain', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))' }}
               />

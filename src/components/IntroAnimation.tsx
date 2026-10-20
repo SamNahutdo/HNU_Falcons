@@ -120,7 +120,7 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
       <div ref={containerRef} className="intro-logo-container">
         <img
           ref={imageRef}
-          src="/images/Logo.png"
+          src={`${import.meta.env.BASE_URL}images/Logo.png`}
           alt="Falcon Logo"
           className="intro-logo-image"
         />

@@ -47,7 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* BRAND / LOGO ONLY */}
         <div className="sidebar-brand">
           <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
-            <img src="/images/Logo.png" alt="Falcon Athletics Logo" />
+            <img src={`${import.meta.env.BASE_URL}images/Logo.png`} alt="Falcon Athletics Logo" />
           </div>
         </div>
 

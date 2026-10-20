@@ -146,7 +146,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
       <div className="login-card">
         {/* LOGO */}
         <div className="login-logo-wrap">
-          <img src="/images/Logo.png" alt="Falcon Logo" />
+          <img src={`${import.meta.env.BASE_URL}images/Logo.png`} alt="Falcon Logo" />
         </div>
 
         {/* LOG IN HEADER */}
