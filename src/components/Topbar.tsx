@@ -2,20 +2,15 @@ import React from 'react';
 import { UserRole } from '../types/database';
 
 interface TopbarProps {
-  onOpenConfig?: () => void;
-  isLive?: boolean;
   searchTerm: string;
   setSearchTerm: (s: string) => void;
-  userDisplayName: string;
   currentRole: UserRole;
   currentTab: string;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
-  onOpenConfig,
   searchTerm,
   setSearchTerm,
-  userDisplayName,
   currentRole,
   currentTab
 }) => {
@@ -24,6 +19,7 @@ export const Topbar: React.FC<TopbarProps> = ({
     'admin-staff': 'Search staff by name or school ID...',
     'admin-coaches': 'Search coaches by name or school ID...',
     'admin-students': 'Search students by name or school ID...',
+    'admin-verifications': 'Search pending accounts by name or school ID...',
     'admin-loans': 'Search borrowers, school IDs, or equipment...',
     'admin-reports': 'Search borrowers, equipment, or reports...'
   };
@@ -44,62 +40,6 @@ export const Topbar: React.FC<TopbarProps> = ({
         </div>
       </div>
 
-      {/* RIGHT ACTIONS: LOGGED IN USER PROFILE */}
-      <div className="topbar-actions">
-        {/* Logged in User Display (Desktop) */}
-        <div
-          onClick={onOpenConfig}
-          className="d-none d-md-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
-          style={{
-            background: '#FFFFFF',
-            border: '1.5px solid #E2E8F0',
-            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
-            fontSize: '0.85rem',
-            cursor: onOpenConfig ? 'pointer' : 'default',
-            transition: 'all 0.15s ease'
-          }}
-          title="Logged In User"
-        >
-          <span
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#10B981',
-              display: 'inline-block'
-            }}
-          ></span>
-          <span style={{ fontWeight: 800, color: 'var(--sidebar-bg)' }}>{userDisplayName}</span>
-          <span
-            className="badge rounded-pill text-capitalize"
-            style={{
-              background: '#F1F5F9',
-              color: '#64748B',
-              fontSize: '0.72rem',
-              fontWeight: 700,
-              padding: '0.25rem 0.55rem'
-            }}
-          >
-            {currentRole}
-          </span>
-        </div>
-
-        {/* Logged in User Avatar (Mobile) */}
-        <div
-          onClick={onOpenConfig}
-          className="d-inline-flex d-md-none align-items-center justify-content-center fw-bold text-white rounded-circle shadow-sm"
-          style={{
-            width: '38px',
-            height: '38px',
-            background: 'var(--coral-gradient)',
-            fontSize: '0.85rem',
-            cursor: onOpenConfig ? 'pointer' : 'default'
-          }}
-          title={`${userDisplayName} (${currentRole})`}
-        >
-          {userDisplayName.charAt(0)}
-        </div>
-      </div>
     </header>
   );
 };

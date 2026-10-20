@@ -15,38 +15,19 @@ import {
   BorrowingItem
 } from '../types/database';
 
-// Configuration keys from localStorage or env
-const STORAGE_URL_KEY = 'fare_supabase_url';
-const STORAGE_ANON_KEY = 'fare_supabase_anon_key';
-const STORAGE_MODE_KEY = 'fare_supabase_mode'; // 'live' | 'mock'
-
-export function getSupabaseCredentials(): { url: string; anonKey: string; isLiveConfigured: boolean; mode: 'live' | 'mock' } {
-  const localUrl = localStorage.getItem(STORAGE_URL_KEY);
-  const localKey = localStorage.getItem(STORAGE_ANON_KEY);
-  const localMode = localStorage.getItem(STORAGE_MODE_KEY) as 'live' | 'mock' | null;
-
+export function getSupabaseCredentials(): { url: string; anonKey: string; isLiveConfigured: boolean } {
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-  const url = localUrl || envUrl;
-  const anonKey = localKey || envKey;
+  const url = envUrl;
+  const anonKey = envKey;
   const isLiveConfigured = Boolean(url && anonKey && url.startsWith('http'));
-
-  const effectiveMode = isLiveConfigured ? (localMode === 'mock' ? 'mock' : 'live') : 'mock';
 
   return {
     url,
     anonKey,
-    isLiveConfigured,
-    mode: effectiveMode
+    isLiveConfigured
   };
-}
-
-export function saveSupabaseCredentials(url: string, anonKey: string, mode: 'live' | 'mock') {
-  localStorage.setItem(STORAGE_URL_KEY, url);
-  localStorage.setItem(STORAGE_ANON_KEY, anonKey);
-  localStorage.setItem(STORAGE_MODE_KEY, mode);
-  initClient();
 }
 
 let supabaseClient: SupabaseClient | null = null;
@@ -70,24 +51,11 @@ function initClient(): SupabaseClient | null {
 // Initial setup
 initClient();
 
-export async function testLiveSupabaseConnection(url: string, key: string): Promise<{ success: boolean; message: string; details?: unknown }> {
-  try {
-    const testClient = createClient(url, key);
-    const { data, error } = await testClient.from('sports').select('count', { count: 'exact', head: true });
-    if (error) {
-      return { success: false, message: `Database error: ${error.message} (Code: ${error.code})` };
-    }
-    return { success: true, message: 'Successfully reached Cloud Supabase PostgreSQL! Connection verified.', details: data };
-  } catch (err: unknown) {
-    return { success: false, message: err instanceof Error ? err.message : 'Unknown connection error' };
-  }
-}
-
 // Unified Database Service
 export const databaseService = {
   isLive(): boolean {
-    const { mode, isLiveConfigured } = getSupabaseCredentials();
-    return mode === 'live' && isLiveConfigured && supabaseClient !== null;
+    const { isLiveConfigured } = getSupabaseCredentials();
+    return isLiveConfigured && supabaseClient !== null;
   },
 
   // 1. SPORTS

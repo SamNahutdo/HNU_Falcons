@@ -30,7 +30,7 @@ export const initialRoles: Role[] = [
 export const initialRegisteredAccounts: RegisteredAccount[] = [
   {
     id: 'user-adm-1',
-    school_id: 'ADM-2022-001',
+    school_id: '06000000',
     full_name: "Ma'am Arbe",
     username: 'arbe',
     password: 'password123',
@@ -38,11 +38,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'Athletic Department Head Office',
     is_online: true,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-01T08:00:00Z'
   },
   {
     id: 'user-stf-1',
-    school_id: 'STF-2023-014',
+    school_id: '20230014',
     full_name: 'Samuel Angelo Udtohan',
     username: 'samuel',
     password: 'password123',
@@ -50,11 +51,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'Sports Equipment Operations',
     is_online: true,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-02T08:00:00Z'
   },
   {
     id: 'user-stf-2',
-    school_id: 'STF-2023-028',
+    school_id: '20230028',
     full_name: 'Carla Reyes',
     username: 'carla',
     password: 'password123',
@@ -62,11 +64,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'Field House Equipment Custodian',
     is_online: false,
     status: 'active',
+    is_verified: true,
     created_at: '2025-02-01T08:00:00Z'
   },
   {
     id: 'user-cch-1',
-    school_id: 'CCH-2021-088',
+    school_id: '20210088',
     full_name: 'Ace Arcamo',
     username: 'ace',
     password: 'password123',
@@ -75,11 +78,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'Varsity Baseball Division',
     is_online: true,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-05T08:00:00Z'
   },
   {
     id: 'user-cch-2',
-    school_id: 'CCH-2022-045',
+    school_id: '20220045',
     full_name: 'Maria Santos',
     username: 'maria',
     password: 'password123',
@@ -88,11 +92,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'Varsity Volleyball Division',
     is_online: false,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-10T08:00:00Z'
   },
   {
     id: 'user-stu-1',
-    school_id: '2024-00101',
+    school_id: '202400101',
     full_name: 'Riza Velasco',
     username: 'riza',
     password: 'password123',
@@ -100,11 +105,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'College of Computer Studies',
     is_online: true,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-10T08:00:00Z'
   },
   {
     id: 'user-stu-2',
-    school_id: '2023-00452',
+    school_id: '202300452',
     full_name: 'Mark Bautista',
     username: 'mark',
     password: 'password123',
@@ -112,11 +118,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'College of Engineering',
     is_online: true,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-10T08:00:00Z'
   },
   {
     id: 'user-stu-3',
-    school_id: '2024-00789',
+    school_id: '202400789',
     full_name: 'Janine Cruz',
     username: 'janine',
     password: 'password123',
@@ -124,11 +131,12 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'College of Education',
     is_online: false,
     status: 'active',
+    is_verified: true,
     created_at: '2025-01-15T08:00:00Z'
   },
   {
     id: 'user-stu-4',
-    school_id: '2024-00332',
+    school_id: '202400332',
     full_name: 'Carlos Dizon',
     username: 'carlos',
     password: 'password123',
@@ -136,6 +144,7 @@ export const initialRegisteredAccounts: RegisteredAccount[] = [
     department: 'School of Business & Management',
     is_online: false,
     status: 'active',
+    is_verified: true,
     created_at: '2025-02-01T08:00:00Z'
   }
 ];
@@ -155,7 +164,7 @@ export const initialAthletes: Athlete[] = [
   {
     id: 'ath-1',
     user_id: 'user-stu-1',
-    student_number: '2024-00101',
+    student_number: '202400101',
     department: 'College of Computer Studies',
     year_level: 3,
     emergency_contact: '0917-123-4567',
@@ -164,7 +173,7 @@ export const initialAthletes: Athlete[] = [
   {
     id: 'ath-2',
     user_id: 'user-stu-2',
-    student_number: '2023-00452',
+    student_number: '202300452',
     department: 'College of Engineering',
     year_level: 4,
     emergency_contact: '0918-555-8899',
@@ -173,7 +182,7 @@ export const initialAthletes: Athlete[] = [
   {
     id: 'ath-3',
     user_id: 'user-stu-3',
-    student_number: '2024-00789',
+    student_number: '202400789',
     department: 'College of Education',
     year_level: 2,
     emergency_contact: '0920-333-4411',
@@ -182,7 +191,7 @@ export const initialAthletes: Athlete[] = [
   {
     id: 'ath-4',
     user_id: 'user-stu-4',
-    student_number: '2024-00332',
+    student_number: '202400332',
     department: 'School of Business & Management',
     year_level: 1,
     emergency_contact: '0919-888-2233',
@@ -194,7 +203,7 @@ export const initialCoaches: Coach[] = [
   {
     id: 'cch-1',
     user_id: 'user-cch-1',
-    employee_number: 'CCH-2021-088',
+    employee_number: '20210088',
     specialization: 'Baseball & Conditioning',
     license_level: 'Head Coach Level 2',
     available_days: ['Monday', 'Wednesday', 'Friday', 'Saturday'],
@@ -204,7 +213,7 @@ export const initialCoaches: Coach[] = [
   {
     id: 'cch-2',
     user_id: 'user-cch-2',
-    employee_number: 'CCH-2022-045',
+    employee_number: '20220045',
     specialization: 'Volleyball & Tactical Defense',
     license_level: 'Head Coach Level 1',
     available_days: ['Tuesday', 'Thursday', 'Saturday'],
@@ -356,7 +365,7 @@ export const initialBorrowingTransactions: BorrowingTransaction[] = [
     athlete_id: 'ath-1',
     borrower_name: 'Riza Velasco',
     borrower_role: 'student',
-    borrower_school_id: '2024-00101',
+    borrower_school_id: '202400101',
     approved_by: 'user-stf-1',
     borrow_date: '2026-10-18T09:00:00Z',
     expected_return_date: '2026-10-22',
@@ -370,7 +379,7 @@ export const initialBorrowingTransactions: BorrowingTransaction[] = [
     athlete_id: 'ath-2',
     borrower_name: 'Mark Bautista',
     borrower_role: 'student',
-    borrower_school_id: '2023-00452',
+    borrower_school_id: '202300452',
     approved_by: 'user-stf-1',
     borrow_date: '2026-10-14T10:30:00Z',
     expected_return_date: '2026-10-19', // Past due date!
@@ -386,7 +395,7 @@ export const initialBorrowingTransactions: BorrowingTransaction[] = [
     athlete_id: 'cch-1',
     borrower_name: 'Ace Arcamo',
     borrower_role: 'coach',
-    borrower_school_id: 'CCH-2021-088',
+    borrower_school_id: '20210088',
     approved_by: 'user-stf-1',
     borrow_date: '2026-10-19T08:00:00Z',
     expected_return_date: '2026-10-24',
@@ -400,7 +409,7 @@ export const initialBorrowingTransactions: BorrowingTransaction[] = [
     athlete_id: 'ath-3',
     borrower_name: 'Janine Cruz',
     borrower_role: 'student',
-    borrower_school_id: '2024-00789',
+    borrower_school_id: '202400789',
     approved_by: 'user-stf-1',
     borrow_date: '2026-10-12T14:00:00Z',
     expected_return_date: '2026-10-16',
@@ -464,10 +473,10 @@ export const initialCoachBookings: CoachBooking[] = [
     id: 'cb-1',
     student_id: 'user-stu-1',
     student_name: 'Riza Velasco',
-    student_school_id: '2024-00101',
+    student_school_id: '202400101',
     coach_id: 'user-cch-1',
     coach_name: 'Ace Arcamo',
-    coach_school_id: 'CCH-2021-088',
+    coach_school_id: '20210088',
     sport: 'Baseball',
     booking_date: '2026-10-24',
     time_slot: '09:00 AM - 10:30 AM',
@@ -480,10 +489,10 @@ export const initialCoachBookings: CoachBooking[] = [
     id: 'cb-2',
     student_id: 'user-stu-2',
     student_name: 'Mark Bautista',
-    student_school_id: '2023-00452',
+    student_school_id: '202300452',
     coach_id: 'user-cch-1',
     coach_name: 'Ace Arcamo',
-    coach_school_id: 'CCH-2021-088',
+    coach_school_id: '20210088',
     sport: 'Baseball',
     booking_date: '2026-10-26',
     time_slot: '02:00 PM - 03:30 PM',
@@ -495,10 +504,10 @@ export const initialCoachBookings: CoachBooking[] = [
     id: 'cb-3',
     student_id: 'user-stu-3',
     student_name: 'Janine Cruz',
-    student_school_id: '2024-00789',
+    student_school_id: '202400789',
     coach_id: 'user-cch-2',
     coach_name: 'Maria Santos',
-    coach_school_id: 'CCH-2022-045',
+    coach_school_id: '20220045',
     sport: 'Volleyball',
     booking_date: '2026-10-23',
     time_slot: '10:00 AM - 11:30 AM',
@@ -518,7 +527,7 @@ export const initialStaffReports: StaffReport[] = [
     item_name: 'Rawlings Heart of the Hide Fielding Glove 11.5"',
     borrower_name: 'Mark Bautista',
     borrower_role: 'student',
-    borrower_school_id: '2023-00452',
+    borrower_school_id: '202300452',
     reported_by: 'Samuel Angelo Udtohan',
     description: 'Leather lacing broke during aggressive diving drill. Needs professional relacing.',
     severity: 'medium',
@@ -532,7 +541,7 @@ export const initialStaffReports: StaffReport[] = [
     item_name: 'Easton Alpha ALX (-3) Alloy Baseball Bat 33"',
     borrower_name: 'Mark Bautista',
     borrower_role: 'student',
-    borrower_school_id: '2023-00452',
+    borrower_school_id: '202300452',
     reported_by: 'Samuel Angelo Udtohan',
     description: 'Loan deadline expired on 2026-10-19. Borrower has not returned 2 bats despite alert sent.',
     severity: 'high',
@@ -547,7 +556,7 @@ export const initialReturnAlerts: ReturnAlert[] = [
     id: 'alt-1',
     transaction_id: 'tx-102',
     recipient_name: 'Mark Bautista',
-    recipient_school_id: '2023-00452',
+    recipient_school_id: '202300452',
     recipient_role: 'student',
     equipment_name: 'Easton Alpha ALX (-3) Alloy Baseball Bat 33"',
     expected_return_date: '2026-10-19',
@@ -625,7 +634,12 @@ class MockDatabaseStore {
   private initStorage() {
     try {
       const storedUsers = localStorage.getItem(STORAGE_USERS);
-      this.registeredAccounts = storedUsers ? JSON.parse(storedUsers) : [...initialRegisteredAccounts];
+      this.registeredAccounts = storedUsers
+        ? (JSON.parse(storedUsers) as RegisteredAccount[]).map(account => ({
+            ...account,
+            is_verified: account.is_verified ?? true
+          }))
+        : [...initialRegisteredAccounts];
 
       const storedEq = localStorage.getItem(STORAGE_EQUIPMENT);
       this.equipment = storedEq ? JSON.parse(storedEq) : [...initialEquipment];
@@ -682,12 +696,15 @@ class MockDatabaseStore {
     return this.registeredAccounts.filter(u => u.role === role);
   }
 
-  registerUser(acc: Omit<RegisteredAccount, 'id' | 'created_at' | 'is_online' | 'status'>): RegisteredAccount {
+  registerUser(acc: Omit<RegisteredAccount, 'id' | 'created_at' | 'is_online' | 'status' | 'is_verified'>): RegisteredAccount {
     if (!acc.school_id || !acc.school_id.trim()) {
       throw new Error('School ID is required to register into the system.');
     }
-    const cleanSchoolId = acc.school_id.trim().toUpperCase();
-    const existing = this.registeredAccounts.find(u => u.school_id.toUpperCase() === cleanSchoolId);
+    if (!/^\d{7,15}$/.test(acc.school_id.trim())) {
+      throw new Error('School ID must contain 7 to 15 digits only.');
+    }
+    const cleanSchoolId = acc.school_id.trim();
+    const existing = this.registeredAccounts.find(u => u.school_id === cleanSchoolId);
     if (existing) {
       throw new Error(`School ID ${cleanSchoolId} is already registered in the system.`);
     }
@@ -696,8 +713,9 @@ class MockDatabaseStore {
       ...acc,
       id: 'usr-' + Date.now(),
       school_id: cleanSchoolId,
-      is_online: true,
+      is_online: false,
       status: 'active',
+      is_verified: false,
       created_at: new Date().toISOString()
     };
     this.registeredAccounts.unshift(newAcc);
@@ -739,6 +757,63 @@ class MockDatabaseStore {
 
     this.notify();
     return newAcc;
+  }
+
+  verifyRegisteredUser(accountId: string) {
+    const account = this.registeredAccounts.find(user => user.id === accountId);
+    if (!account || account.is_verified) return;
+
+    account.is_verified = true;
+    this.notify();
+  }
+
+  removeRegisteredUser(accountId: string) {
+    const account = this.registeredAccounts.find(user => user.id === accountId);
+    if (!account) {
+      throw new Error('This account no longer exists.');
+    }
+    if (account.role === 'admin') {
+      throw new Error('Administrator accounts cannot be removed here.');
+    }
+
+    const hasActiveLoan = this.borrowingTransactions.some(transaction =>
+      transaction.borrower_school_id === account.school_id &&
+      ['pending', 'approved', 'active', 'partially_returned', 'overdue'].includes(transaction.status)
+    );
+    if (hasActiveLoan) {
+      throw new Error('This account has an outstanding loan. Resolve or cancel the loan before removing the account.');
+    }
+
+    this.registeredAccounts = this.registeredAccounts.filter(user => user.id !== accountId);
+
+    const isUserReferenced = this.borrowingTransactions.some(transaction => transaction.approved_by === accountId);
+    if (!isUserReferenced) {
+      this.users = this.users.filter(user => user.id !== accountId);
+    }
+
+    if (account.role === 'student') {
+      const athlete = this.athletes.find(profile => profile.user_id === accountId);
+      const athleteIsReferenced = athlete && (
+        this.borrowingTransactions.some(transaction => transaction.athlete_id === athlete.id) ||
+        this.teamMembers.some(member => member.athlete_id === athlete.id)
+      );
+      if (athlete && !athleteIsReferenced) {
+        this.athletes = this.athletes.filter(profile => profile.id !== athlete.id);
+      }
+    } else if (account.role === 'coach') {
+      const coach = this.coaches.find(profile => profile.user_id === accountId);
+      const coachIsReferenced = coach && (
+        this.teams.some(team => team.coach_id === coach.id) ||
+        this.coachBookings.some(booking =>
+          booking.coach_id === accountId || booking.coach_school_id === account.school_id
+        )
+      );
+      if (coach && !coachIsReferenced) {
+        this.coaches = this.coaches.filter(profile => profile.id !== coach.id);
+      }
+    }
+
+    this.notify();
   }
 
   toggleOnlineStatus(schoolId: string) {

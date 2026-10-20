@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserRole } from '../types/database';
 
 interface SidebarProps {
@@ -23,6 +23,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   onLogout
 }) => {
+  const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
+
   const handleNav = (tab: string) => {
     setCurrentTab(tab);
     if (onClose) {
@@ -31,6 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
+    <>
     <aside className={`sidebar ${isOpen ? 'show' : ''}`}>
       {/* Mobile close button */}
       <button
@@ -95,6 +98,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button onClick={() => handleNav('admin-students')} className={currentTab === 'admin-students' ? 'active' : ''}>
                   <i className="bi bi-people-fill"></i>
                   <span>Students</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('admin-verifications')} className={currentTab === 'admin-verifications' ? 'active' : ''}>
+                  <i className="bi bi-person-check"></i>
+                  <span>Account Verification</span>
                 </button>
               </li>
               <li>
@@ -236,10 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <li>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (onClose) onClose();
-                    onLogout();
-                  }}
+                  onClick={() => setShowLogoutConfirmation(true)}
                   className="sidebar-nav-logout-btn"
                   title="Sign out of portal"
                 >
@@ -252,5 +258,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </ul>
       </div>
     </aside>
+    {showLogoutConfirmation && (
+      <div
+        className="logout-confirmation-backdrop"
+        onClick={() => setShowLogoutConfirmation(false)}
+      >
+        <section
+          className="logout-confirmation-dialog"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="logout-confirmation-title"
+          aria-describedby="logout-confirmation-description"
+          onClick={event => event.stopPropagation()}
+        >
+          <div className="logout-confirmation-icon">
+            <i className="bi bi-box-arrow-right"></i>
+          </div>
+          <h2 id="logout-confirmation-title">Log out?</h2>
+          <p id="logout-confirmation-description">Are you sure you want to log out of your account?</p>
+          <div className="logout-confirmation-actions">
+            <button
+              type="button"
+              className="logout-cancel-button"
+              onClick={() => setShowLogoutConfirmation(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="logout-confirm-button"
+              onClick={() => {
+                setShowLogoutConfirmation(false);
+                if (onClose) onClose();
+                onLogout?.();
+              }}
+            >
+              Log Out
+            </button>
+          </div>
+        </section>
+      </div>
+    )}
+    </>
   );
 };

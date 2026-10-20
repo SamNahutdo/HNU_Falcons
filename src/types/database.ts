@@ -31,6 +31,7 @@ export interface RegisteredAccount {
   specialization?: string;
   is_online: boolean;
   status: 'active' | 'suspended';
+  is_verified: boolean;
   created_at: string;
 }
 

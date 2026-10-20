@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SearchField } from '../components/SearchField';
 import { mockDb } from '../services/mockData';
 import {
   Equipment,
@@ -237,11 +238,47 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
 
   // Filtered equipment by search and available day
   const filteredEquipment = equipmentList.filter(eq => {
-    const matchesSearch = eq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      eq.equipment_code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      eq.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query ||
+      eq.name.toLowerCase().includes(query) ||
+      eq.equipment_code.toLowerCase().includes(query) ||
+      eq.category.toLowerCase().includes(query);
     const matchesDay = filterDay === 'all' || (eq.available_days && eq.available_days.includes(filterDay));
     return matchesSearch && matchesDay;
+  });
+  const filteredTransactions = transactions.filter(tx => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      (tx.borrower_name || '').toLowerCase().includes(query) ||
+      (tx.borrower_school_id || '').toLowerCase().includes(query) ||
+      (tx.items?.[0]?.equipment?.name || tx.remarks || '').toLowerCase().includes(query) ||
+      tx.status.includes(query);
+  });
+  const filteredBorrowers = registeredBorrowers.filter(b => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      b.full_name.toLowerCase().includes(query) ||
+      b.school_id.toLowerCase().includes(query) ||
+      b.role.includes(query);
+  });
+  const filteredBookings = bookings.filter(b => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      b.student_name.toLowerCase().includes(query) ||
+      b.student_school_id.toLowerCase().includes(query) ||
+      b.coach_name.toLowerCase().includes(query) ||
+      b.sport.toLowerCase().includes(query) ||
+      b.purpose.toLowerCase().includes(query) ||
+      b.status.includes(query);
+  });
+  const filteredReports = reports.filter(report => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      report.borrower_name.toLowerCase().includes(query) ||
+      report.borrower_school_id.toLowerCase().includes(query) ||
+      (report.item_name || '').toLowerCase().includes(query) ||
+      report.description.toLowerCase().includes(query) ||
+      report.status.includes(query);
   });
 
   return (
@@ -305,18 +342,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                 ))}
               </select>
 
-              {/* SEARCH */}
-              <div className="input-group-custom" style={{ padding: '0.15rem 0.65rem' }}>
-                <i className="bi bi-search" style={{ fontSize: '0.85rem' }}></i>
-                <input
-                  type="text"
-                  placeholder="Search item or code..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ fontSize: '0.82rem', width: '160px' }}
-                />
-              </div>
-
               <button
                 type="button"
                 onClick={() => setIsAddEqOpen(true)}
@@ -327,6 +352,8 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
               </button>
             </div>
           </div>
+
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search item or code..." />
 
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -441,6 +468,8 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                 </button>
               </div>
 
+              <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search borrower, school ID, or equipment..." />
+
               <div className="table-responsive">
                 <table className="table table-hover align-middle mb-0">
                   <thead style={{ background: '#F8FAFC', color: '#64748B', fontSize: '0.74rem', textTransform: 'uppercase' }}>
@@ -453,7 +482,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                     </tr>
                   </thead>
                   <tbody style={{ fontSize: '0.84rem' }}>
-                    {transactions.map(tx => {
+                    {filteredTransactions.map(tx => {
                       const itemName = tx.items?.[0]?.equipment?.name || tx.remarks || 'Sports Gear';
                       return (
                         <tr key={tx.id}>
@@ -527,12 +556,14 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                   <small className="text-muted">Presence & online status</small>
                 </div>
                 <span className="badge bg-secondary rounded-pill px-2 py-1">
-                  {registeredBorrowers.length} Members
+                  {filteredBorrowers.length} Members
                 </span>
               </div>
 
+              <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search borrowers by name or school ID..." />
+
               <div className="d-flex flex-column gap-2">
-                {registeredBorrowers.map(b => (
+                {filteredBorrowers.map(b => (
                   <div
                     key={b.id}
                     className="p-2 rounded-3 d-flex justify-content-between align-items-center"
@@ -586,9 +617,11 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
               <small className="text-muted">Manage varsity training appointments and coach schedules</small>
             </div>
             <span className="badge bg-info text-dark rounded-pill px-3 py-1">
-              {bookings.length} Bookings
+              {filteredBookings.length} Bookings
             </span>
           </div>
+
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search students, coaches, or bookings..." />
 
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -603,7 +636,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                 </tr>
               </thead>
               <tbody style={{ fontSize: '0.84rem' }}>
-                {bookings.map(b => (
+                {filteredBookings.map(b => (
                   <tr key={b.id}>
                     <td className="px-3">
                       <div className="fw-semibold text-dark">{b.student_name}</div>
@@ -673,6 +706,8 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
             </button>
           </div>
 
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search borrower, equipment, or report..." />
+
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead style={{ background: '#F8FAFC', color: '#64748B', fontSize: '0.74rem', textTransform: 'uppercase' }}>
@@ -686,7 +721,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                 </tr>
               </thead>
               <tbody style={{ fontSize: '0.84rem' }}>
-                {reports.map(rep => (
+                {filteredReports.map(rep => (
                   <tr key={rep.id}>
                     <td className="px-3">
                       <span className={`badge ${rep.report_type === 'damaged_equipment' ? 'bg-danger' : 'bg-warning text-dark'}`}>

@@ -90,13 +90,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
            u.school_id.toUpperCase() === identifier.toUpperCase()
     );
 
-    if (match) {
-      onLogin(match.role, match.full_name, match.username, match.school_id);
-    } else {
-      // Fallback if entering custom username
-      const displayName = identifier.charAt(0).toUpperCase() + identifier.slice(1);
-      onLogin(selectedRole, displayName, identifier.toLowerCase(), 'ID-GUEST');
+    if (!match || match.password !== password) {
+      setErrorMessage('The username, school ID, or password is incorrect.');
+      return;
     }
+
+    if (!match.is_verified) {
+      setErrorMessage('Your account is waiting for admin verification. Please try again after it has been approved.');
+      return;
+    }
+
+    onLogin(match.role, match.full_name, match.username, match.school_id);
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -106,6 +110,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
     // Explicit validation: School ID is strictly required!
     if (!regSchoolId.trim()) {
       setErrorMessage('School ID is required to register into the system.');
+      return;
+    }
+    if (!/^\d{7,15}$/.test(regSchoolId.trim())) {
+      setErrorMessage('School ID must contain 7 to 15 digits only.');
       return;
     }
     if (!regFullName.trim() || !regUsername.trim()) {
@@ -128,7 +136,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
       setPassword(newAcc.password || 'password123');
       setSelectedRole(newAcc.role);
       setActiveMode('login');
-      setNoticeMessage(`Account registered for ${newAcc.full_name} (${newAcc.school_id}). You may now log in.`);
+      setNoticeMessage(`Account created for ${newAcc.full_name} (${newAcc.school_id}). An admin must verify it before you can log in.`);
 
       // Reset form
       setRegSchoolId('');
@@ -345,14 +353,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
                 <i className="bi bi-person-badge"></i>
                 <input
                   type="text"
-                  placeholder="e.g. 2024-00101 or STF-2023-014"
+                  placeholder="Enter 7–15 digits"
                   value={regSchoolId}
                   onChange={(e) => setRegSchoolId(e.target.value)}
+                  inputMode="numeric"
+                  maxLength={15}
                   required
                 />
               </div>
               <small className="text-muted" style={{ fontSize: '0.72rem' }}>
-                Required for registration in Falcon Athletics system.
+                Use 7–15 digits only.
               </small>
             </div>
 

@@ -5,12 +5,33 @@ import { RegisteredAccount, BorrowingTransaction, CoachBooking, StaffReport } fr
 interface AdminDashboardViewProps {
   currentTab: string;
   searchTerm: string;
+  setSearchTerm: (value: string) => void;
   onNavigate: (tab: string) => void;
 }
+
+interface AdminSearchProps {
+  searchTerm: string;
+  onSearchChange: (value: string) => void;
+  placeholder: string;
+}
+
+const AdminSearch: React.FC<AdminSearchProps> = ({ searchTerm, onSearchChange, placeholder }) => (
+  <div className="topbar-search-wrap mb-3" style={{ width: '100%' }}>
+    <input
+      type="text"
+      className="topbar-search-input"
+      placeholder={placeholder}
+      value={searchTerm}
+      onChange={event => onSearchChange(event.target.value)}
+    />
+    <i className="bi bi-search topbar-search-icon"></i>
+  </div>
+);
 
 export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   currentTab,
   searchTerm,
+  setSearchTerm,
   onNavigate
 }) => {
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredAccount[]>([]);
@@ -18,6 +39,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [reports, setReports] = useState<StaffReport[]>([]);
   const [activeUserTab, setActiveUserTab] = useState<'all' | 'staff' | 'coach' | 'student'>('all');
+  const [userRemovalError, setUserRemovalError] = useState<string | null>(null);
 
   const loadData = () => {
     setRegisteredUsers(mockDb.getRegisteredUsers());
@@ -40,7 +62,29 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     mockDb.updateStaffReportStatus(reportId, 'reviewed');
   };
 
+  const handleRemoveUser = (user: RegisteredAccount) => {
+    const confirmed = window.confirm(
+      `Remove ${user.full_name} (${user.role}) from the system? They will no longer be able to log in.`
+    );
+    if (!confirmed) return;
+
+    setUserRemovalError(null);
+    try {
+      mockDb.removeRegisteredUser(user.id);
+    } catch (error: unknown) {
+      setUserRemovalError(error instanceof Error ? error.message : 'Could not remove this account.');
+    }
+  };
+
   const search = searchTerm.trim().toLowerCase();
+  const dashboardAccounts = registeredUsers.filter(user =>
+    !search ||
+    user.full_name.toLowerCase().includes(search) ||
+    user.school_id.toLowerCase().includes(search) ||
+    user.username.toLowerCase().includes(search) ||
+    (user.department || '').toLowerCase().includes(search) ||
+    (user.specialization || '').toLowerCase().includes(search)
+  );
   const pageRole = currentTab === 'admin-staff'
     ? 'staff'
     : currentTab === 'admin-coaches'
@@ -60,6 +104,16 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       (u.specialization || '').toLowerCase().includes(search);
     return matchesTab && matchesSearch;
   });
+  const pendingUsers = registeredUsers.filter(user =>
+    !user.is_verified &&
+    (!search ||
+      user.full_name.toLowerCase().includes(search) ||
+      user.school_id.toLowerCase().includes(search) ||
+      user.username.toLowerCase().includes(search) ||
+      user.role.includes(search) ||
+      (user.department || '').toLowerCase().includes(search) ||
+      (user.specialization || '').toLowerCase().includes(search))
+  );
   const filteredLoans = transactions.filter(tx => {
     if (tx.status !== 'active' && tx.status !== 'overdue') return false;
     const equipmentName = tx.items?.[0]?.equipment?.name || tx.remarks || '';
@@ -84,17 +138,266 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const studentCount = registeredUsers.filter(u => u.role === 'student').length;
   const activeLoansCount = transactions.filter(t => t.status === 'active' || t.status === 'overdue').length;
   const pendingReportsCount = reports.filter(r => r.status === 'submitted').length;
+  const today = new Date();
+  const userRegistrationsByDay = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6 + index);
+    const dateKey = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, '0'),
+      String(date.getDate()).padStart(2, '0')
+    ].join('-');
+
+    return {
+      date,
+      dateKey,
+      count: dashboardAccounts.filter(user => user.created_at.slice(0, 10) === dateKey).length
+    };
+  });
+  const maxDailyRegistrations = Math.max(...userRegistrationsByDay.map(day => day.count));
+  const chartAxisMaximum = Math.max(3, maxDailyRegistrations);
+  const chartPoints = userRegistrationsByDay.map((day, index) => ({
+    ...day,
+    x: 48 + index * 105,
+    y: 172 - (day.count / chartAxisMaximum) * 126
+  }));
+  const chartLinePath = chartPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ');
+  const chartAreaPath = `${chartLinePath} L ${chartPoints[chartPoints.length - 1].x} 180 L ${chartPoints[0].x} 180 Z`;
+  const registrationsThisWeek = userRegistrationsByDay.reduce((total, day) => total + day.count, 0);
   const pageTitle = currentTab === 'admin-staff'
     ? 'Registered Staff'
     : currentTab === 'admin-coaches'
       ? 'Registered Coaches'
       : currentTab === 'admin-students'
         ? 'Registered Students'
+        : currentTab === 'admin-verifications'
+          ? 'Account Verification'
         : currentTab === 'admin-loans'
           ? 'Active Loans'
           : currentTab === 'admin-reports'
             ? 'Staff Reports'
             : 'Institutional Administration';
+
+  if (currentTab === 'dashboard') {
+    return (
+      <div className="container-fluid px-0">
+        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div>
+            <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
+            <span className="text-muted small">User accounts and registration activity</span>
+          </div>
+        </div>
+
+        <div className="row g-3 mb-4">
+          <div className="col-12 col-sm-6 col-xl">
+            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-staff')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon-circle stat-icon-cyan"><i className="bi bi-person-workspace"></i></div>
+              <div className="stat-label">Staff Registered</div>
+              <div className="stat-trend" style={{ color: '#0EA5E9' }}>Equipment Desk Custodians</div>
+              <h3 className="stat-value text-dark">{staffCount}</h3>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-xl">
+            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-coaches')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon-circle stat-icon-indigo"><i className="bi bi-person-badge"></i></div>
+              <div className="stat-label">Coaches Registered</div>
+              <div className="stat-trend" style={{ color: '#6366F1' }}>Varsity Head &amp; Asst</div>
+              <h3 className="stat-value text-dark">{coachCount}</h3>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-xl">
+            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-students')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon-circle stat-icon-green"><i className="bi bi-people-fill"></i></div>
+              <div className="stat-label">Students Registered</div>
+              <div className="stat-trend" style={{ color: '#10B981' }}>Collegiate Athletes</div>
+              <h3 className="stat-value text-dark">{studentCount}</h3>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-xl">
+            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-loans')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon-circle stat-icon-coral"><i className="bi bi-arrow-left-right"></i></div>
+              <div className="stat-label">Active Loans</div>
+              <div className="stat-trend" style={{ color: 'var(--coral)' }}>Currently Borrowed</div>
+              <h3 className="stat-value" style={{ color: 'var(--coral)' }}>{activeLoansCount}</h3>
+            </div>
+          </div>
+          <div className="col-12 col-sm-6 col-xl">
+            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-reports')} style={{ cursor: 'pointer' }}>
+              <div className="stat-icon-circle stat-icon-amber"><i className="bi bi-exclamation-triangle-fill"></i></div>
+              <div className="stat-label">Staff Reports</div>
+              <div className="stat-trend" style={{ color: '#F59E0B' }}>Broken &amp; Overdue</div>
+              <h3 className="stat-value text-dark">{pendingReportsCount}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="row g-4">
+          <div className="col-lg-8">
+            <section className="card-modern h-100" aria-labelledby="user-registration-title">
+              <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+                <div>
+                  <h5 id="user-registration-title" className="fw-bold mb-1 text-dark">User Registrations</h5>
+                  <small className="text-muted">
+                    {search ? 'Matching new accounts registered each day over the last 7 days' : 'New accounts registered each day over the last 7 days'}
+                  </small>
+                </div>
+                <span className="pill-soft pill-coral">
+                  <i className="bi bi-people-fill"></i>
+                  {registrationsThisWeek} last 7 days
+                </span>
+              </div>
+
+              <AdminSearch
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                placeholder="Search members by name or school ID..."
+              />
+
+              <div className="position-relative" style={{ height: '270px', width: '100%' }}>
+                <svg
+                  viewBox="0 0 700 230"
+                  role="img"
+                  aria-label="New user registrations by day for the last seven days"
+                  style={{ width: '100%', height: '100%', overflow: 'visible' }}
+                >
+                  <defs>
+                    <linearGradient id="userRegistrationArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FF6F59" stopOpacity="0.28" />
+                      <stop offset="100%" stopColor="#FF6F59" stopOpacity="0.02" />
+                    </linearGradient>
+                  </defs>
+                  {[46, 88, 130, 172].map((y, index) => (
+                    <g key={y}>
+                      <line x1="48" y1={y} x2="678" y2={y} stroke="#EDF1F7" strokeWidth="1" />
+                      <text x="38" y={y + 4} fill="#94A3B8" fontSize="11" textAnchor="end">
+                        {Math.round(chartAxisMaximum * (3 - index) / 3)}
+                      </text>
+                    </g>
+                  ))}
+                  <path d={chartAreaPath} fill="url(#userRegistrationArea)" />
+                  <path d={chartLinePath} fill="none" stroke="#FF6F59" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  {chartPoints.map(point => (
+                    <g key={point.dateKey}>
+                      <circle cx={point.x} cy={point.y} r="5" fill="#FF6F59" stroke="#FFFFFF" strokeWidth="2.5" />
+                      <title>{`${point.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}: ${point.count} new ${point.count === 1 ? 'user' : 'users'}`}</title>
+                      <text x={point.x} y="211" fill="#64748B" fontSize="11" textAnchor="middle">
+                        {point.date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+              </div>
+              <div className="d-flex align-items-center gap-2 mt-2 small text-muted">
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
+                New user accounts
+              </div>
+            </section>
+          </div>
+
+          <div className="col-lg-4">
+            <section
+              className="h-100 rounded-4 p-4 text-white"
+              aria-label="User account summary"
+              style={{ background: 'linear-gradient(145deg, #FF725C, #F4513D)', boxShadow: '0 12px 28px rgba(244, 81, 61, 0.2)' }}
+            >
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="fs-2 fw-bold">{dashboardAccounts.length}</div>
+                <span className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.2)' }}>
+                  <i className="bi bi-people-fill fs-5"></i>
+                </span>
+              </div>
+              <div className="fw-semibold mb-4">{search ? 'Matching Accounts' : 'Registered Accounts'}</div>
+              <div className="d-flex justify-content-between align-items-center py-2 border-top border-white border-opacity-25">
+                <span><i className="bi bi-circle-fill me-2" style={{ fontSize: '0.55rem' }}></i>Online now</span>
+                <strong>{dashboardAccounts.filter(user => user.is_online).length}</strong>
+              </div>
+              <div className="d-flex justify-content-between align-items-center py-2 border-top border-white border-opacity-25">
+                <span><i className="bi bi-arrow-up-circle-fill me-2"></i>Registered last 7 days</span>
+                <strong>{registrationsThisWeek}</strong>
+              </div>
+              <button
+                type="button"
+                className="btn btn-light rounded-pill fw-semibold w-100 mt-3"
+                onClick={() => onNavigate('admin-students')}
+              >
+                View Students <i className="bi bi-arrow-right ms-1"></i>
+              </button>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (currentTab === 'admin-verifications') {
+    return (
+      <div className="container-fluid px-0">
+        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+          <div>
+            <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
+            <span className="text-muted small">Review new accounts and approve access to the system</span>
+          </div>
+          <span className="badge rounded-pill px-3 py-2 bg-warning text-dark">
+            {pendingUsers.length} Pending
+          </span>
+        </div>
+
+        <div className="card-modern">
+          <AdminSearch
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="Search pending accounts by name or school ID..."
+          />
+          {pendingUsers.length === 0 ? (
+            <div className="text-center py-5">
+              <i className="bi bi-person-check text-success" style={{ fontSize: '2rem' }}></i>
+              <p className="fw-semibold text-dark mt-3 mb-1">No accounts waiting for verification</p>
+              <small className="text-muted">New registrations will appear here for admin review.</small>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead style={{ background: '#F8FAFC', color: '#64748B', fontSize: '0.76rem', textTransform: 'uppercase' }}>
+                  <tr>
+                    <th className="py-3 px-3">School ID</th>
+                    <th className="py-3">Name</th>
+                    <th className="py-3">Role</th>
+                    <th className="py-3">Department / Specialization</th>
+                    <th className="py-3">Registered</th>
+                    <th className="py-3 text-end">Action</th>
+                  </tr>
+                </thead>
+                <tbody style={{ fontSize: '0.84rem' }}>
+                  {pendingUsers.map(user => (
+                    <tr key={user.id}>
+                      <td className="px-3 fw-semibold">{user.school_id}</td>
+                      <td>
+                        <div className="fw-semibold text-dark">{user.full_name}</div>
+                        <small className="text-muted">@{user.username}</small>
+                      </td>
+                      <td className="text-capitalize">{user.role}</td>
+                      <td className="text-secondary">{user.department || user.specialization || 'Athletics'}</td>
+                      <td>{new Date(user.created_at).toLocaleDateString()}</td>
+                      <td className="text-end">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-success"
+                          onClick={() => mockDb.verifyRegisteredUser(user.id)}
+                        >
+                          <i className="bi bi-check-circle me-1"></i>Verify
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container-fluid px-0">
@@ -106,11 +409,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             {currentTab === 'dashboard'
               ? 'Overview of registered members, active loans, and staff reports'
               : 'Search and review records for this section'}
-          </span>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          <span className="badge rounded-pill px-3 py-2" style={{ background: '#EEF2FF', color: '#4F46E5', fontWeight: 700, fontSize: '0.8rem' }}>
-            <i className="bi bi-shield-check me-1"></i> Executive Admin Control
           </span>
         </div>
       </div>
@@ -183,6 +481,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       {/* REGISTERED USERS SECTION */}
       {(currentTab === 'dashboard' || pageRole !== null) && (
       <div className="card-modern mb-4">
+        {userRemovalError && (
+          <div className="alert alert-danger" role="alert">
+            {userRemovalError}
+          </div>
+        )}
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
           <div>
             <h5 className="fw-bold mb-0 text-dark">
@@ -209,6 +512,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
         </div>
 
+        <AdminSearch
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder={
+            currentTab === 'admin-staff'
+              ? 'Search staff by name or school ID...'
+              : currentTab === 'admin-coaches'
+                ? 'Search coaches by name or school ID...'
+                : currentTab === 'admin-students'
+                  ? 'Search students by name or school ID...'
+                  : 'Search members by name or school ID...'
+          }
+        />
+
         <div className="table-responsive">
           <table className="table table-hover align-middle mb-0">
             <thead style={{ background: '#F8FAFC', color: '#64748B', fontSize: '0.76rem', textTransform: 'uppercase' }}>
@@ -219,12 +536,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <th className="py-3">Department / Specialization</th>
                 <th className="py-3">Status</th>
                 <th className="py-3">Current Activity</th>
+                {pageRole && <th className="py-3 text-end">Actions</th>}
               </tr>
             </thead>
             <tbody style={{ fontSize: '0.84rem' }}>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4 text-muted">
+                  <td colSpan={pageRole ? 7 : 6} className="text-center py-4 text-muted">
                     No registered members found.
                   </td>
                 </tr>
@@ -303,6 +621,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           <span className="text-muted small">No active transaction</span>
                         )}
                       </td>
+                      {pageRole && (
+                        <td className="text-end">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleRemoveUser(user)}
+                            aria-label={`Remove ${user.full_name}`}
+                          >
+                            <i className="bi bi-trash me-1"></i>Remove
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -488,6 +818,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             </div>
             <span className="badge bg-primary rounded-pill px-3 py-1">{filteredLoans.length} Active Records</span>
           </div>
+          <AdminSearch
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="Search borrowers, school IDs, or equipment..."
+          />
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
               <thead style={{ background: '#F8FAFC', color: '#64748B', fontSize: '0.76rem', textTransform: 'uppercase' }}>
@@ -536,6 +871,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               {reports.filter(report => report.status === 'submitted').length} Pending
             </span>
           </div>
+          <AdminSearch
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            placeholder="Search borrowers, equipment, or reports..."
+          />
           {filteredReports.length === 0 ? (
             <div className="text-center py-4 text-muted small">No matching staff reports found.</div>
           ) : (

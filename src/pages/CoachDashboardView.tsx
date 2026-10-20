@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SearchField } from '../components/SearchField';
 import { mockDb } from '../services/mockData';
 import { CoachBooking, Equipment, BorrowingTransaction } from '../types/database';
 
@@ -17,6 +18,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [myLoans, setMyLoans] = useState<BorrowingTransaction[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Borrow modal
   const [selectedEq, setSelectedEq] = useState<Equipment | null>(null);
@@ -70,7 +72,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
       mockDb.borrowEquipmentDirect(
         userDisplayName || 'Head Coach',
         'coach',
-        'CCH-2021-088',
+        '20210088',
         selectedEq.id,
         Number(borrowQuantity),
         borrowReturnDate,
@@ -86,6 +88,30 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
 
   const pendingBookings = bookings.filter(b => b.status === 'pending');
   const approvedBookings = bookings.filter(b => b.status === 'approved');
+  const query = searchQuery.trim().toLowerCase();
+  const matchesBookingSearch = (booking: CoachBooking) =>
+    !query ||
+    booking.student_name.toLowerCase().includes(query) ||
+    booking.student_school_id.toLowerCase().includes(query) ||
+    booking.coach_name.toLowerCase().includes(query) ||
+    booking.sport.toLowerCase().includes(query) ||
+    booking.purpose.toLowerCase().includes(query) ||
+    booking.status.includes(query) ||
+    booking.booking_date.toLowerCase().includes(query);
+  const filteredBookings = bookings.filter(matchesBookingSearch);
+  const filteredApprovedBookings = approvedBookings.filter(matchesBookingSearch);
+  const filteredLoans = myLoans.filter(loan =>
+    !query ||
+    (loan.items?.[0]?.equipment?.name || loan.remarks || '').toLowerCase().includes(query) ||
+    loan.status.includes(query) ||
+    loan.expected_return_date.toLowerCase().includes(query)
+  );
+  const filteredEquipment = equipmentList.filter(equipment =>
+    !query ||
+    equipment.name.toLowerCase().includes(query) ||
+    equipment.equipment_code.toLowerCase().includes(query) ||
+    equipment.category.toLowerCase().includes(query)
+  );
 
   return (
     <div className="container-fluid px-0">
@@ -180,11 +206,13 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
                   </button>
                 </div>
 
-                {approvedBookings.length === 0 ? (
+                <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search student sessions..." />
+
+                {filteredApprovedBookings.length === 0 ? (
                   <div className="text-center py-4 text-muted small">No scheduled training sessions.</div>
                 ) : (
                   <div className="d-flex flex-column gap-2">
-                    {approvedBookings.map(b => (
+                    {filteredApprovedBookings.map(b => (
                       <div
                         key={b.id}
                         className="p-3 rounded-3 d-flex justify-content-between align-items-center"
@@ -225,11 +253,13 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
                   </button>
                 </div>
 
-                {myLoans.length === 0 ? (
+                <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search gear loans..." />
+
+                {filteredLoans.length === 0 ? (
                   <div className="text-center py-4 text-muted small">No equipment currently on loan to you.</div>
                 ) : (
                   <div className="d-flex flex-column gap-2">
-                    {myLoans.map(tx => (
+                    {filteredLoans.map(tx => (
                       <div
                         key={tx.id}
                         className="p-3 rounded-3"
@@ -263,9 +293,11 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
               <small className="text-muted">Review, approve, or decline student coaching appointments</small>
             </div>
             <span className="badge bg-dark rounded-pill px-3 py-1">
-              {bookings.length} Total Bookings
+              {filteredBookings.length} Total Bookings
             </span>
           </div>
+
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search students, sports, or bookings..." />
 
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -280,7 +312,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
                 </tr>
               </thead>
               <tbody style={{ fontSize: '0.84rem' }}>
-                {bookings.map(b => (
+                {filteredBookings.map(b => (
                   <tr key={b.id}>
                     <td className="px-3">
                       <div className="fw-semibold text-dark">{b.student_name}</div>
@@ -355,9 +387,11 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
               <small className="text-muted">Select gear to borrow for varsity practice sessions</small>
             </div>
             <span className="badge bg-secondary rounded-pill px-3 py-1">
-              {equipmentList.filter(e => e.available_quantity > 0).length} Items Available
+              {filteredEquipment.filter(e => e.available_quantity > 0).length} Items Available
             </span>
           </div>
+
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search equipment by name or code..." />
 
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0">
@@ -372,7 +406,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
                 </tr>
               </thead>
               <tbody style={{ fontSize: '0.84rem' }}>
-                {equipmentList.map(eq => (
+                {filteredEquipment.map(eq => (
                   <tr key={eq.id}>
                     <td className="px-3 fw-bold text-dark">
                       <span className="badge bg-light text-secondary" style={{ border: '1px solid #E2E8F0' }}>

@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
-import { Topbar } from './components/Topbar';
 import { BottomNav } from './components/BottomNav';
-import { SupabaseModal } from './components/SupabaseModal';
 import { IntroAnimation } from './components/IntroAnimation';
 
 import { LoginView } from './pages/LoginView';
@@ -11,52 +9,79 @@ import { StaffDashboardView } from './pages/StaffDashboardView';
 import { CoachDashboardView } from './pages/CoachDashboardView';
 import { StudentDashboardView } from './pages/StudentDashboardView';
 
-import { databaseService } from './services/supabase';
-import { mockDb } from './services/mockData';
 import { UserRole } from './types/database';
 
-export const App: React.FC = () => {
-  // Intro animation state: Plays before login page
-  const [showIntro, setShowIntro] = useState<boolean>(true);
+const PORTAL_SESSION_KEY = 'falcon_portal_session';
 
-  // Auth state - starts not logged in so intro and login show first
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>('admin');
-  const [userDisplayName, setUserDisplayName] = useState<string>("Ma'am Arbe");
-  const [username, setUsername] = useState<string>('arbe');
+interface PortalSession {
+  role: UserRole;
+  displayName: string;
+  username: string;
+  currentTab: string;
+}
+
+const isUserRole = (role: unknown): role is UserRole =>
+  role === 'admin' || role === 'staff' || role === 'coach' || role === 'student';
+
+const getPortalSession = (): PortalSession | null => {
+  const savedSession = sessionStorage.getItem(PORTAL_SESSION_KEY);
+  if (!savedSession) return null;
+
+  try {
+    const session: unknown = JSON.parse(savedSession);
+    if (
+      typeof session === 'object' &&
+      session !== null &&
+      'role' in session &&
+      isUserRole(session.role) &&
+      'displayName' in session &&
+      typeof session.displayName === 'string' &&
+      'username' in session &&
+      typeof session.username === 'string' &&
+      'currentTab' in session &&
+      typeof session.currentTab === 'string'
+    ) {
+      return {
+        role: session.role,
+        displayName: session.displayName,
+        username: session.username,
+        currentTab: session.currentTab
+      };
+    }
+  } catch {
+    sessionStorage.removeItem(PORTAL_SESSION_KEY);
+  }
+
+  return null;
+};
+
+export const App: React.FC = () => {
+  const [initialSession] = useState(getPortalSession);
+  const [showIntro, setShowIntro] = useState<boolean>(() => !initialSession);
+
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(initialSession));
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => initialSession?.role || 'admin');
+  const [userDisplayName, setUserDisplayName] = useState<string>(() => initialSession?.displayName || "Ma'am Arbe");
+  const [username, setUsername] = useState<string>(() => initialSession?.username || 'arbe');
   const [justLoggedOut, setJustLoggedOut] = useState<boolean>(false);
 
   // Navigation
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const [currentTab, setCurrentTab] = useState<string>(() => initialSession?.currentTab || 'dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
-
-  // Modals
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
-
-  // Connection mode state
-  const [isLiveMode, setIsLiveMode] = useState<boolean>(databaseService.isLive());
 
   const handleNavigate = (tab: string) => {
     setCurrentTab(tab);
     setSearchTerm('');
-  };
-
-  const loadAllData = useCallback(async () => {
-    try {
-      setIsLiveMode(databaseService.isLive());
-    } catch (err) {
-      console.error('Database mode error:', err);
+    if (isLoggedIn) {
+      sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
+        role: currentRole,
+        displayName: userDisplayName,
+        username,
+        currentTab: tab
+      }));
     }
-  }, []);
-
-  useEffect(() => {
-    loadAllData();
-    const unsubscribe = mockDb.subscribe(() => {
-      loadAllData();
-    });
-    return unsubscribe;
-  }, [loadAllData]);
+  };
 
   const handleLogin = (role: UserRole, displayName: string, uname: string) => {
     setCurrentRole(role);
@@ -64,14 +89,18 @@ export const App: React.FC = () => {
     setUsername(uname);
     setIsLoggedIn(true);
     setJustLoggedOut(false);
-    if (role === 'staff' || role === 'student') {
-      setCurrentTab('equipment');
-    } else {
-      setCurrentTab('dashboard');
-    }
+    const tab = role === 'staff' || role === 'student' ? 'equipment' : 'dashboard';
+    setCurrentTab(tab);
+    sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
+      role,
+      displayName,
+      username: uname,
+      currentTab: tab
+    }));
   };
 
   const handleLogout = () => {
+    sessionStorage.removeItem(PORTAL_SESSION_KEY);
     setIsLoggedIn(false);
     setJustLoggedOut(true);
   };
@@ -117,16 +146,6 @@ export const App: React.FC = () => {
       {/* MAIN WRAPPER */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* TOPBAR */}
-        <Topbar
-          onOpenConfig={() => setIsConfigOpen(true)}
-          isLive={isLiveMode}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          userDisplayName={userDisplayName}
-          currentRole={currentRole}
-          currentTab={currentTab}
-        />
-
         {/* MAIN BODY CONTENT (Role-Tailored Portals driven by Sidebar) */}
         <main className="main-content">
           {/* ADMIN: DASHBOARD AND SEARCHABLE MANAGEMENT PAGES */}
@@ -134,6 +153,7 @@ export const App: React.FC = () => {
             <AdminDashboardView
               currentTab={currentTab}
               searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
               onNavigate={handleNavigate}
             />
           )}
@@ -178,12 +198,6 @@ export const App: React.FC = () => {
         />
       </div>
 
-      {/* Supabase Connection Modal */}
-      <SupabaseModal
-        isOpen={isConfigOpen}
-        onClose={() => setIsConfigOpen(false)}
-        onConfigUpdated={loadAllData}
-      />
     </div>
   );
 };

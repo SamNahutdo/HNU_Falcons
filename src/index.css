@@ -430,6 +430,109 @@ body {
   flex-shrink: 0;
 }
 
+.logout-confirmation-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  animation: fadeInBackdrop 0.18s ease-out;
+}
+
+.logout-confirmation-dialog {
+  width: min(100%, 410px);
+  padding: 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  text-align: center;
+  animation: logoutDialogEnter 0.2s ease-out;
+}
+
+.logout-confirmation-icon {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 1rem;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(255, 111, 89, 0.12);
+  color: var(--coral);
+  font-size: 1.4rem;
+}
+
+.logout-confirmation-dialog h2 {
+  margin: 0;
+  color: #1E293B;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.logout-confirmation-dialog p {
+  margin: 0.55rem 0 1.5rem;
+  color: #64748B;
+  font-size: 0.92rem;
+}
+
+.logout-confirmation-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.logout-confirmation-actions button {
+  min-width: 120px;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.logout-confirmation-actions button:hover {
+  transform: translateY(-1px);
+}
+
+.logout-cancel-button {
+  border: 1px solid #E2E8F0;
+  background: #F8FAFC;
+  color: #475569;
+}
+
+.logout-cancel-button:hover {
+  background: #F1F5F9;
+}
+
+.logout-confirm-button {
+  border: 1px solid var(--coral);
+  background: var(--coral);
+  color: #FFFFFF;
+  box-shadow: 0 5px 14px rgba(255, 111, 89, 0.22);
+}
+
+.logout-confirm-button:hover {
+  background: #F45F4D;
+  box-shadow: 0 7px 18px rgba(255, 111, 89, 0.3);
+}
+
+@keyframes logoutDialogEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* ==========================================================================
    TOPBAR
    ========================================================================== */

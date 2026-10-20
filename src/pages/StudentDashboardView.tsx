@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SearchField } from '../components/SearchField';
 import { mockDb } from '../services/mockData';
 import { Equipment, CoachBooking, Coach, ReturnAlert, BorrowingTransaction } from '../types/database';
 
@@ -47,7 +48,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     setMyBookings(
       mockDb.coachBookings.filter(
         b => b.student_name.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             b.student_school_id === '2024-00101' ||
+             b.student_school_id === '202400101' ||
              b.student_id === username
       )
     );
@@ -56,7 +57,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     setMyLoans(
       mockDb.borrowingTransactions.filter(
         t => t.borrower_name?.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             t.borrower_school_id === '2024-00101'
+             t.borrower_school_id === '202400101'
       )
     );
 
@@ -64,7 +65,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     setMyAlerts(
       mockDb.returnAlerts.filter(
         a => a.recipient_name.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             a.recipient_school_id === '2024-00101'
+             a.recipient_school_id === '202400101'
       )
     );
   };
@@ -92,7 +93,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
       mockDb.borrowEquipmentDirect(
         userDisplayName || 'Student Athlete',
         'student',
-        '2024-00101',
+        '202400101',
         borrowModalEq.id,
         Number(borrowQty),
         borrowReturnDate,
@@ -121,7 +122,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     mockDb.createCoachBooking({
       student_id: username || 'student-user',
       student_name: userDisplayName || 'Riza Velasco',
-      student_school_id: '2024-00101',
+      student_school_id: '202400101',
       coach_id: bookingModalCoach.id,
       coach_name: coachName,
       coach_school_id: bookingModalCoach.employee_number,
@@ -143,6 +144,29 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     const matchesCat = selectedCategory === 'all' || eq.category === selectedCategory;
     return matchesSearch && matchesCat && eq.available_quantity > 0;
   });
+  const filteredCoaches = coaches.filter(coach => {
+    const coachName = mockDb.users.find(user => user.id === coach.user_id)?.full_name || '';
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      coachName.toLowerCase().includes(query) ||
+      coach.employee_number.toLowerCase().includes(query) ||
+      coach.specialization.toLowerCase().includes(query);
+  });
+  const filteredBookings = myBookings.filter(booking => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      booking.coach_name.toLowerCase().includes(query) ||
+      booking.sport.toLowerCase().includes(query) ||
+      booking.purpose.toLowerCase().includes(query) ||
+      booking.status.includes(query);
+  });
+  const filteredLoans = myLoans.filter(transaction => {
+    const query = searchQuery.trim().toLowerCase();
+    return !query ||
+      (transaction.items?.[0]?.equipment?.name || transaction.remarks || '').toLowerCase().includes(query) ||
+      transaction.status.includes(query) ||
+      transaction.expected_return_date.toLowerCase().includes(query);
+  });
 
   return (
     <div className="container-fluid px-0">
@@ -153,24 +177,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
           <span className="text-muted small">Browse available gear, book varsity coaches, and track loan deadlines</span>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate && onNavigate('bookings')}
-            className="btn btn-sm btn-dark"
-            style={{ borderRadius: '10px', fontWeight: 700 }}
-          >
-            <i className="bi bi-person-badge me-1"></i> Book a Coach
-          </button>
-          <button
-            type="button"
-            onClick={() => onNavigate && onNavigate('activity')}
-            className="btn btn-sm text-white"
-            style={{ background: 'var(--coral)', borderRadius: '10px', fontWeight: 700 }}
-          >
-            <i className="bi bi-clock-history me-1"></i> My Activity ({myBookings.length + myLoans.length})
-          </button>
-        </div>
       </div>
 
       {toastMessage && (
@@ -222,19 +228,10 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
                 <option value="Protective Gear">Protective Gear</option>
               </select>
 
-              {/* SEARCH */}
-              <div className="input-group-custom" style={{ padding: '0.15rem 0.65rem' }}>
-                <i className="bi bi-search" style={{ fontSize: '0.85rem' }}></i>
-                <input
-                  type="text"
-                  placeholder="Search gear..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ fontSize: '0.82rem', width: '160px' }}
-                />
-              </div>
             </div>
           </div>
+
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search gear..." />
 
           <div className="row g-3">
             {filteredEquipment.length === 0 ? (
@@ -305,12 +302,14 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
               <small className="text-muted">Check coach availability schedules and submit a training request</small>
             </div>
             <span className="badge bg-primary rounded-pill px-3 py-1">
-              {coaches.length} Varsity Coaches
+              {filteredCoaches.length} Varsity Coaches
             </span>
           </div>
 
+          <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search coaches by name or specialization..." />
+
           <div className="row g-4">
-            {coaches.map(c => {
+            {filteredCoaches.map(c => {
               const coachUser = mockDb.users.find(u => u.id === c.user_id);
               return (
                 <div key={c.id} className="col-12 col-md-6">
@@ -379,16 +378,18 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
             <div className="card-modern h-100">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="fw-bold mb-0 text-dark">My Coach Appointments</h5>
-                <span className="badge bg-dark rounded-pill px-2 py-1">{myBookings.length}</span>
+                <span className="badge bg-dark rounded-pill px-2 py-1">{filteredBookings.length}</span>
               </div>
 
-              {myBookings.length === 0 ? (
+              <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search appointments..." />
+
+              {filteredBookings.length === 0 ? (
                 <div className="text-center py-5 text-muted small">
-                  You have not submitted any coach booking requests yet.
+                  No matching coach appointments found.
                 </div>
               ) : (
                 <div className="d-flex flex-column gap-3">
-                  {myBookings.map(b => (
+                  {filteredBookings.map(b => (
                     <div
                       key={b.id}
                       className="p-3 rounded-3"
@@ -445,16 +446,18 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
             <div className="card-modern h-100">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5 className="fw-bold mb-0 text-dark">My Active Gear Loans</h5>
-                <span className="badge bg-secondary rounded-pill px-2 py-1">{myLoans.length}</span>
+                <span className="badge bg-secondary rounded-pill px-2 py-1">{filteredLoans.length}</span>
               </div>
 
-              {myLoans.length === 0 ? (
+              <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search loans by gear or status..." />
+
+              {filteredLoans.length === 0 ? (
                 <div className="text-center py-5 text-muted small">
-                  No gear currently borrowed.
+                  No matching gear loans found.
                 </div>
               ) : (
                 <div className="d-flex flex-column gap-3">
-                  {myLoans.map(tx => (
+                  {filteredLoans.map(tx => (
                     <div
                       key={tx.id}
                       className="p-3 rounded-3"

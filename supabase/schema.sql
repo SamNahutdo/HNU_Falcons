@@ -44,11 +44,14 @@ CREATE TABLE roles (
 -- 1.2 USERS TABLE (System Identity & Credentials Anchor)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    school_id VARCHAR(15),
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(150) NOT NULL,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT users_school_id_unique UNIQUE (school_id),
+    CONSTRAINT users_school_id_format_check CHECK (school_id IS NULL OR school_id ~ '^[0-9]{7,15}$')
 );
 
 -- 1.3 ATHLETES TABLE (1:1 Specialization of Users for Varsity Students)

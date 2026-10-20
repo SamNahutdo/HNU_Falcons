@@ -207,7 +207,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             </div>
                             <div>
                               <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Riza Velasco</div>
-                              <small className="text-muted" style={{ fontSize: '0.75rem' }}>2024-00101</small>
+                              <small className="text-muted" style={{ fontSize: '0.75rem' }}>202400101</small>
                             </div>
                           </div>
                         </td>
@@ -236,7 +236,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             </div>
                             <div>
                               <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Mark Bautista</div>
-                              <small className="text-muted" style={{ fontSize: '0.75rem' }}>2023-00452</small>
+                              <small className="text-muted" style={{ fontSize: '0.75rem' }}>202300452</small>
                             </div>
                           </div>
                         </td>
@@ -428,7 +428,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <td><span className="badge bg-light text-secondary border">#13</span></td>
                         <td>
                           <div className="fw-bold text-dark">Riza Velasco</div>
-                          <small className="text-muted">2024-00101</small>
+                          <small className="text-muted">202400101</small>
                         </td>
                         <td>
                           <span className="badge bg-light text-dark border px-2 py-1" style={{ fontSize: '0.75rem' }}>
@@ -454,7 +454,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <td><span className="badge bg-light text-secondary border">#12</span></td>
                         <td>
                           <div className="fw-bold text-dark">Riza Velasco</div>
-                          <small className="text-muted">2024-00101</small>
+                          <small className="text-muted">202400101</small>
                         </td>
                         <td>
                           <span className="badge bg-light text-dark border px-2 py-1" style={{ fontSize: '0.75rem' }}>
@@ -671,7 +671,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
                   <div>
                     <h5 className="fw-bold mb-0 text-white">Riza Velasco</h5>
-                    <small style={{ color: 'rgba(255,255,255,0.85)' }}>2024-00101</small>
+                    <small style={{ color: 'rgba(255,255,255,0.85)' }}>202400101</small>
                   </div>
                 </div>
 
