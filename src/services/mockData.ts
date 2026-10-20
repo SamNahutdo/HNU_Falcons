@@ -12,172 +12,574 @@ import {
   MaintenanceRecord,
   AuditLog,
   ActiveLoansSummaryView,
-  EquipmentInventoryStatusView
+  EquipmentInventoryStatusView,
+  RegisteredAccount,
+  CoachBooking,
+  StaffReport,
+  ReturnAlert,
+  UserRole
 } from '../types/database';
 
 export const initialRoles: Role[] = [
-  { id: '00000000-0000-0000-0000-000000000001', name: 'admin', description: 'Full athletic department administrative control', created_at: '2025-01-01T00:00:00Z' },
-  { id: '00000000-0000-0000-0000-000000000002', name: 'staff', description: 'Equipment custodian and checkout manager', created_at: '2025-01-01T00:00:00Z' },
-  { id: '00000000-0000-0000-0000-000000000003', name: 'student', description: 'Varsity student athlete', created_at: '2025-01-01T00:00:00Z' }
+  { id: 'role-1', name: 'admin', description: 'Institutional Athletic Director', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'role-2', name: 'staff', description: 'Equipment Desk & Custodian', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'role-3', name: 'coach', description: 'Varsity Head & Assistant Coach', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'role-4', name: 'student', description: 'Collegiate Student Athlete', created_at: '2025-01-01T00:00:00Z' }
 ];
 
-export const initialUsers: User[] = [
-  { id: '10000000-0000-0000-0000-000000000001', email: 'arbe@falcon.edu', full_name: "Ma'am Arbe", role_id: '00000000-0000-0000-0000-000000000001', status: 'active', created_at: '2025-01-01T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000002', email: 'samuel@falcon.edu', full_name: 'Samuel Angelo Udtohan', role_id: '00000000-0000-0000-0000-000000000002', status: 'active', created_at: '2025-01-02T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000004', email: 'ace@falcon.edu', full_name: 'Ace Arcamo', role_id: '00000000-0000-0000-0000-000000000001', status: 'active', created_at: '2025-01-05T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000006', email: 'riza.velasco@falcon.edu', full_name: 'Riza Velasco', role_id: '00000000-0000-0000-0000-000000000003', status: 'active', created_at: '2025-01-10T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000007', email: 'mark.bautista@falcon.edu', full_name: 'Mark Bautista', role_id: '00000000-0000-0000-0000-000000000003', status: 'active', created_at: '2025-01-10T00:00:00Z' }
+export const initialRegisteredAccounts: RegisteredAccount[] = [
+  {
+    id: 'user-adm-1',
+    school_id: 'ADM-2022-001',
+    full_name: "Ma'am Arbe",
+    username: 'arbe',
+    password: 'password123',
+    role: 'admin',
+    department: 'Athletic Department Head Office',
+    is_online: true,
+    status: 'active',
+    created_at: '2025-01-01T08:00:00Z'
+  },
+  {
+    id: 'user-stf-1',
+    school_id: 'STF-2023-014',
+    full_name: 'Samuel Angelo Udtohan',
+    username: 'samuel',
+    password: 'password123',
+    role: 'staff',
+    department: 'Sports Equipment Operations',
+    is_online: true,
+    status: 'active',
+    created_at: '2025-01-02T08:00:00Z'
+  },
+  {
+    id: 'user-stf-2',
+    school_id: 'STF-2023-028',
+    full_name: 'Carla Reyes',
+    username: 'carla',
+    password: 'password123',
+    role: 'staff',
+    department: 'Field House Equipment Custodian',
+    is_online: false,
+    status: 'active',
+    created_at: '2025-02-01T08:00:00Z'
+  },
+  {
+    id: 'user-cch-1',
+    school_id: 'CCH-2021-088',
+    full_name: 'Ace Arcamo',
+    username: 'ace',
+    password: 'password123',
+    role: 'coach',
+    specialization: 'Baseball & Conditioning',
+    department: 'Varsity Baseball Division',
+    is_online: true,
+    status: 'active',
+    created_at: '2025-01-05T08:00:00Z'
+  },
+  {
+    id: 'user-cch-2',
+    school_id: 'CCH-2022-045',
+    full_name: 'Maria Santos',
+    username: 'maria',
+    password: 'password123',
+    role: 'coach',
+    specialization: 'Volleyball & Tactical Defense',
+    department: 'Varsity Volleyball Division',
+    is_online: false,
+    status: 'active',
+    created_at: '2025-01-10T08:00:00Z'
+  },
+  {
+    id: 'user-stu-1',
+    school_id: '2024-00101',
+    full_name: 'Riza Velasco',
+    username: 'riza',
+    password: 'password123',
+    role: 'student',
+    department: 'College of Computer Studies',
+    is_online: true,
+    status: 'active',
+    created_at: '2025-01-10T08:00:00Z'
+  },
+  {
+    id: 'user-stu-2',
+    school_id: '2023-00452',
+    full_name: 'Mark Bautista',
+    username: 'mark',
+    password: 'password123',
+    role: 'student',
+    department: 'College of Engineering',
+    is_online: true,
+    status: 'active',
+    created_at: '2025-01-10T08:00:00Z'
+  },
+  {
+    id: 'user-stu-3',
+    school_id: '2024-00789',
+    full_name: 'Janine Cruz',
+    username: 'janine',
+    password: 'password123',
+    role: 'student',
+    department: 'College of Education',
+    is_online: false,
+    status: 'active',
+    created_at: '2025-01-15T08:00:00Z'
+  },
+  {
+    id: 'user-stu-4',
+    school_id: '2024-00332',
+    full_name: 'Carlos Dizon',
+    username: 'carlos',
+    password: 'password123',
+    role: 'student',
+    department: 'School of Business & Management',
+    is_online: false,
+    status: 'active',
+    created_at: '2025-02-01T08:00:00Z'
+  }
 ];
+
+export const initialUsers: User[] = initialRegisteredAccounts.map(a => ({
+  id: a.id,
+  email: `${a.username}@falcon.edu`,
+  full_name: a.full_name,
+  role_id: a.role === 'admin' ? 'role-1' : a.role === 'staff' ? 'role-2' : a.role === 'coach' ? 'role-3' : 'role-4',
+  school_id: a.school_id,
+  status: a.status,
+  is_online: a.is_online,
+  created_at: a.created_at
+}));
 
 export const initialAthletes: Athlete[] = [
   {
-    id: '30000000-0000-0000-0000-000000000001',
-    user_id: '10000000-0000-0000-0000-000000000006',
+    id: 'ath-1',
+    user_id: 'user-stu-1',
     student_number: '2024-00101',
     department: 'College of Computer Studies',
     year_level: 3,
-    emergency_contact: 'Family Velasco - 0917-123-4567',
+    emergency_contact: '0917-123-4567',
     created_at: '2025-01-10T00:00:00Z'
   },
   {
-    id: '30000000-0000-0000-0000-000000000002',
-    user_id: '10000000-0000-0000-0000-000000000007',
+    id: 'ath-2',
+    user_id: 'user-stu-2',
     student_number: '2023-00452',
     department: 'College of Engineering',
     year_level: 4,
-    emergency_contact: 'Roberto Bautista (Father) - 0918-555-8899',
+    emergency_contact: '0918-555-8899',
     created_at: '2025-01-10T00:00:00Z'
+  },
+  {
+    id: 'ath-3',
+    user_id: 'user-stu-3',
+    student_number: '2024-00789',
+    department: 'College of Education',
+    year_level: 2,
+    emergency_contact: '0920-333-4411',
+    created_at: '2025-01-15T00:00:00Z'
+  },
+  {
+    id: 'ath-4',
+    user_id: 'user-stu-4',
+    student_number: '2024-00332',
+    department: 'School of Business & Management',
+    year_level: 1,
+    emergency_contact: '0919-888-2233',
+    created_at: '2025-02-01T00:00:00Z'
   }
 ];
 
 export const initialCoaches: Coach[] = [
-  { id: '20000000-0000-0000-0000-000000000001', user_id: '10000000-0000-0000-0000-000000000004', employee_number: 'EMP-2021-088', specialization: 'Baseball & Conditioning', license_level: 'Head Coach Level 2', created_at: '2025-01-05T00:00:00Z' }
+  {
+    id: 'cch-1',
+    user_id: 'user-cch-1',
+    employee_number: 'CCH-2021-088',
+    specialization: 'Baseball & Conditioning',
+    license_level: 'Head Coach Level 2',
+    available_days: ['Monday', 'Wednesday', 'Friday', 'Saturday'],
+    available_hours: '08:00 AM - 11:30 AM & 02:00 PM - 05:00 PM',
+    created_at: '2025-01-05T00:00:00Z'
+  },
+  {
+    id: 'cch-2',
+    user_id: 'user-cch-2',
+    employee_number: 'CCH-2022-045',
+    specialization: 'Volleyball & Tactical Defense',
+    license_level: 'Head Coach Level 1',
+    available_days: ['Tuesday', 'Thursday', 'Saturday'],
+    available_hours: '09:00 AM - 12:00 PM & 03:00 PM - 06:00 PM',
+    created_at: '2025-01-10T00:00:00Z'
+  }
 ];
 
 export const initialSports: Sport[] = [
-  { id: '40000000-0000-0000-0000-000000000001', name: 'Baseball', category: 'Team', status: 'active', created_at: '2025-01-01T00:00:00Z' },
-  { id: '40000000-0000-0000-0000-000000000002', name: 'Table Tennis', category: 'Individual', status: 'active', created_at: '2025-01-01T00:00:00Z' },
-  { id: '40000000-0000-0000-0000-000000000003', name: 'Basketball', category: 'Team', status: 'active', created_at: '2025-01-01T00:00:00Z' }
+  { id: 'spt-1', name: 'Baseball', category: 'Team', status: 'active', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'spt-2', name: 'Volleyball', category: 'Team', status: 'active', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'spt-3', name: 'Basketball', category: 'Team', status: 'active', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'spt-4', name: 'Table Tennis', category: 'Individual', status: 'active', created_at: '2025-01-01T00:00:00Z' },
+  { id: 'spt-5', name: 'Badminton', category: 'Dual', status: 'active', created_at: '2025-01-01T00:00:00Z' }
 ];
 
 export const initialTeams: Team[] = [
-  { id: '50000000-0000-0000-0000-000000000001', sport_id: '40000000-0000-0000-0000-000000000001', coach_id: '20000000-0000-0000-0000-000000000001', team_name: 'Falcons Men Varsity Baseball', school_year: '2025-2026', status: 'active', created_at: '2025-01-05T00:00:00Z' },
-  { id: '50000000-0000-0000-0000-000000000002', sport_id: '40000000-0000-0000-0000-000000000002', coach_id: '20000000-0000-0000-0000-000000000001', team_name: 'Falcons Table Tennis Team', school_year: '2025-2026', status: 'active', created_at: '2025-01-05T00:00:00Z' }
+  { id: 'team-1', sport_id: 'spt-1', coach_id: 'cch-1', team_name: 'Falcons Men Varsity Baseball', school_year: '2025-2026', status: 'active', created_at: '2025-01-05T00:00:00Z' },
+  { id: 'team-2', sport_id: 'spt-2', coach_id: 'cch-2', team_name: 'Falcons Women Varsity Volleyball', school_year: '2025-2026', status: 'active', created_at: '2025-01-10T00:00:00Z' },
+  { id: 'team-3', sport_id: 'spt-4', coach_id: 'cch-1', team_name: 'Falcons Table Tennis Squad', school_year: '2025-2026', status: 'active', created_at: '2025-01-12T00:00:00Z' }
 ];
 
 export const initialTeamMembers: TeamMember[] = [
-  { id: '60000000-0000-0000-0000-000000000001', team_id: '50000000-0000-0000-0000-000000000001', athlete_id: '30000000-0000-0000-0000-000000000001', position: 'Outfielder', jersey_number: 14, joined_at: '2024-08-15', status: 'active', created_at: '2025-01-10T00:00:00Z' },
-  { id: '60000000-0000-0000-0000-000000000002', team_id: '50000000-0000-0000-0000-000000000002', athlete_id: '30000000-0000-0000-0000-000000000001', position: 'Singles Player', jersey_number: 7, joined_at: '2024-09-01', status: 'active', created_at: '2025-01-10T00:00:00Z' }
+  { id: 'tm-1', team_id: 'team-1', athlete_id: 'ath-2', position: 'Pitcher', jersey_number: 18, joined_at: '2024-08-15', status: 'active', created_at: '2025-01-10T00:00:00Z' },
+  { id: 'tm-2', team_id: 'team-2', athlete_id: 'ath-3', position: 'Open Hitter', jersey_number: 9, joined_at: '2024-09-01', status: 'active', created_at: '2025-01-15T00:00:00Z' },
+  { id: 'tm-3', team_id: 'team-3', athlete_id: 'ath-1', position: 'Singles Player', jersey_number: 7, joined_at: '2024-09-01', status: 'active', created_at: '2025-01-10T00:00:00Z' }
 ];
 
-// Matching 133 Total Equipment, 113 Available, 12 On Loan, 1 Maintenance
+// Realistic athletics equipment with realistic available days & stock
 export const initialEquipment: Equipment[] = [
-  { id: '70000000-0000-0000-0000-000000000001', sport_id: '40000000-0000-0000-0000-000000000001', equipment_code: 'EQ-BS-001', name: 'Rawlings Alloy Baseball Bat 33-inch', category: 'Bat', total_quantity: 45, available_quantity: 38, condition: 'good', status: 'available', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-  { id: '70000000-0000-0000-0000-000000000002', sport_id: '40000000-0000-0000-0000-000000000001', equipment_code: 'EQ-BS-002', name: 'Loan Verification Glove', category: 'Glove', total_quantity: 35, available_quantity: 30, condition: 'good', status: 'available', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-  { id: '70000000-0000-0000-0000-000000000003', sport_id: '40000000-0000-0000-0000-000000000001', equipment_code: 'EQ-BS-003', name: 'Last Remaining Helmet', category: 'Protective Gear', total_quantity: 25, available_quantity: 20, condition: 'good', status: 'available', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-  { id: '70000000-0000-0000-0000-000000000004', sport_id: '40000000-0000-0000-0000-000000000001', equipment_code: 'EQ-BS-004', name: 'Return Test Bat', category: 'Bat', total_quantity: 18, available_quantity: 16, condition: 'fair', status: 'available', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' },
-  { id: '70000000-0000-0000-0000-000000000005', sport_id: '40000000-0000-0000-0000-000000000002', equipment_code: 'EQ-TT-001', name: 'Butterfly Timo Boll Racket Set', category: 'Racket', total_quantity: 10, available_quantity: 9, condition: 'needs_maintenance', status: 'under_maintenance', created_at: '2025-01-01T00:00:00Z', updated_at: '2025-01-01T00:00:00Z' }
-];
-
-export const initialBorrowingTransactions: BorrowingTransaction[] = [
   {
-    id: '80000000-0000-0000-0000-000000000013',
-    athlete_id: '30000000-0000-0000-0000-000000000001',
-    approved_by: '10000000-0000-0000-0000-000000000002',
-    borrow_date: '2026-10-14T09:00:00Z',
-    expected_return_date: '2026-10-21',
-    actual_return_date: null,
-    status: 'active',
-    remarks: 'Field practice scrimmage helmet',
-    created_at: '2026-10-14T09:00:00Z'
+    id: 'eq-1',
+    sport_id: 'spt-1',
+    equipment_code: 'EQ-BS-001',
+    name: 'Easton Alpha ALX (-3) Alloy Baseball Bat 33"',
+    category: 'Bat',
+    total_quantity: 24,
+    available_quantity: 19,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    condition_notes: 'All bats inspected; grip tapes in good condition.',
+    last_inspected: '2026-10-15',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2026-10-15T00:00:00Z'
   },
   {
-    id: '80000000-0000-0000-0000-000000000012',
-    athlete_id: '30000000-0000-0000-0000-000000000001',
-    approved_by: '10000000-0000-0000-0000-000000000002',
-    borrow_date: '2026-10-15T10:30:00Z',
+    id: 'eq-2',
+    sport_id: 'spt-1',
+    equipment_code: 'EQ-BS-002',
+    name: 'Rawlings Heart of the Hide Fielding Glove 11.5"',
+    category: 'Glove',
+    total_quantity: 30,
+    available_quantity: 26,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    condition_notes: 'Oiled and conditioned monthly.',
+    last_inspected: '2026-10-16',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2026-10-16T00:00:00Z'
+  },
+  {
+    id: 'eq-3',
+    sport_id: 'spt-1',
+    equipment_code: 'EQ-BS-003',
+    name: 'Schutt Vengeance Pro Field Scrimmage Helmet',
+    category: 'Protective Gear',
+    total_quantity: 20,
+    available_quantity: 16,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Wednesday', 'Friday'],
+    condition_notes: 'Jaw pads sanitized regularly.',
+    last_inspected: '2026-10-14',
+    created_at: '2025-01-01T00:00:00Z',
+    updated_at: '2026-10-14T00:00:00Z'
+  },
+  {
+    id: 'eq-4',
+    sport_id: 'spt-2',
+    equipment_code: 'EQ-VB-001',
+    name: 'Mikasa V200W Official FIVB Competition Volleyball',
+    category: 'Ball',
+    total_quantity: 35,
+    available_quantity: 31,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    condition_notes: 'Air pressure checked at 4.3 psi.',
+    last_inspected: '2026-10-18',
+    created_at: '2025-01-02T00:00:00Z',
+    updated_at: '2026-10-18T00:00:00Z'
+  },
+  {
+    id: 'eq-5',
+    sport_id: 'spt-3',
+    equipment_code: 'EQ-BB-001',
+    name: 'Wilson NCAA Evo Indoor Official Match Basketball Size 7',
+    category: 'Ball',
+    total_quantity: 28,
+    available_quantity: 24,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+    condition_notes: 'Microfiber composite surface in excellent shape.',
+    last_inspected: '2026-10-17',
+    created_at: '2025-01-02T00:00:00Z',
+    updated_at: '2026-10-17T00:00:00Z'
+  },
+  {
+    id: 'eq-6',
+    sport_id: 'spt-4',
+    equipment_code: 'EQ-TT-001',
+    name: 'Butterfly Viscaria Table Tennis Carbon Paddle',
+    category: 'Racket',
+    total_quantity: 16,
+    available_quantity: 14,
+    condition: 'fair',
+    status: 'available',
+    available_days: ['Tuesday', 'Thursday', 'Saturday'],
+    condition_notes: 'Edge tape slightly worn on unit 3, rubber still high friction.',
+    last_inspected: '2026-10-10',
+    created_at: '2025-01-03T00:00:00Z',
+    updated_at: '2026-10-10T00:00:00Z'
+  },
+  {
+    id: 'eq-7',
+    sport_id: 'spt-5',
+    equipment_code: 'EQ-BD-001',
+    name: 'Yonex Astrox 88D Pro Graphite Badminton Racket',
+    category: 'Racket',
+    total_quantity: 18,
+    available_quantity: 15,
+    condition: 'good',
+    status: 'available',
+    available_days: ['Monday', 'Wednesday', 'Friday'],
+    condition_notes: 'String tension set to 26 lbs.',
+    last_inspected: '2026-10-12',
+    created_at: '2025-01-04T00:00:00Z',
+    updated_at: '2026-10-12T00:00:00Z'
+  }
+];
+
+// Realistic Borrowing Transactions
+export const initialBorrowingTransactions: BorrowingTransaction[] = [
+  {
+    id: 'tx-101',
+    athlete_id: 'ath-1',
+    borrower_name: 'Riza Velasco',
+    borrower_role: 'student',
+    borrower_school_id: '2024-00101',
+    approved_by: 'user-stf-1',
+    borrow_date: '2026-10-18T09:00:00Z',
     expected_return_date: '2026-10-22',
     actual_return_date: null,
     status: 'active',
-    remarks: 'Cage batting practice',
-    created_at: '2026-10-15T10:30:00Z'
+    remarks: 'Inter-department training practice',
+    created_at: '2026-10-18T09:00:00Z'
   },
   {
-    id: '80000000-0000-0000-0000-000000000001',
-    athlete_id: '30000000-0000-0000-0000-000000000001',
-    approved_by: '10000000-0000-0000-0000-000000000002',
-    borrow_date: '2026-09-25T08:00:00Z',
-    expected_return_date: '2026-09-30',
+    id: 'tx-102',
+    athlete_id: 'ath-2',
+    borrower_name: 'Mark Bautista',
+    borrower_role: 'student',
+    borrower_school_id: '2023-00452',
+    approved_by: 'user-stf-1',
+    borrow_date: '2026-10-14T10:30:00Z',
+    expected_return_date: '2026-10-19', // Past due date!
     actual_return_date: null,
     status: 'overdue',
-    remarks: 'Varsity tournament weekend',
-    created_at: '2026-09-25T08:00:00Z'
+    remarks: 'Batting cage scrimmage preparation',
+    created_at: '2026-10-14T10:30:00Z',
+    alert_sent: true,
+    last_alert_sent: '2026-10-20T08:15:00Z'
   },
   {
-    id: '80000000-0000-0000-0000-000000000003',
-    athlete_id: '30000000-0000-0000-0000-000000000001',
-    approved_by: '10000000-0000-0000-0000-000000000002',
-    borrow_date: '2026-09-27T08:00:00Z',
-    expected_return_date: '2026-09-29',
+    id: 'tx-103',
+    athlete_id: 'cch-1',
+    borrower_name: 'Ace Arcamo',
+    borrower_role: 'coach',
+    borrower_school_id: 'CCH-2021-088',
+    approved_by: 'user-stf-1',
+    borrow_date: '2026-10-19T08:00:00Z',
+    expected_return_date: '2026-10-24',
     actual_return_date: null,
-    status: 'overdue',
-    remarks: 'Glove training session',
-    created_at: '2026-09-27T08:00:00Z'
+    status: 'active',
+    remarks: 'Varsity baseball squad fielding drills',
+    created_at: '2026-10-19T08:00:00Z'
   },
   {
-    id: '80000000-0000-0000-0000-000000000004',
-    athlete_id: '30000000-0000-0000-0000-000000000001',
-    approved_by: '10000000-0000-0000-0000-000000000002',
-    borrow_date: '2026-09-27T14:00:00Z',
-    expected_return_date: '2026-09-30',
-    actual_return_date: null,
-    status: 'overdue',
-    remarks: 'Field trial',
-    created_at: '2026-09-27T14:00:00Z'
+    id: 'tx-104',
+    athlete_id: 'ath-3',
+    borrower_name: 'Janine Cruz',
+    borrower_role: 'student',
+    borrower_school_id: '2024-00789',
+    approved_by: 'user-stf-1',
+    borrow_date: '2026-10-12T14:00:00Z',
+    expected_return_date: '2026-10-16',
+    actual_return_date: '2026-10-16T16:00:00Z',
+    status: 'returned',
+    remarks: 'Volleyball jump serve clinic',
+    created_at: '2026-10-12T14:00:00Z'
   }
 ];
 
 export const initialBorrowingItems: BorrowingItem[] = [
-  { id: '90000000-0000-0000-0000-000000000013', transaction_id: '80000000-0000-0000-0000-000000000013', equipment_id: '70000000-0000-0000-0000-000000000003', quantity: 1, returned_quantity: 0, condition_before: 'good', condition_after: null, return_status: 'borrowed', created_at: '2026-10-14T09:00:00Z' },
-  { id: '90000000-0000-0000-0000-000000000012', transaction_id: '80000000-0000-0000-0000-000000000012', equipment_id: '70000000-0000-0000-0000-000000000004', quantity: 2, returned_quantity: 0, condition_before: 'good', condition_after: null, return_status: 'borrowed', created_at: '2026-10-15T10:30:00Z' },
-  { id: '90000000-0000-0000-0000-000000000001', transaction_id: '80000000-0000-0000-0000-000000000001', equipment_id: '70000000-0000-0000-0000-000000000001', quantity: 2, returned_quantity: 0, condition_before: 'good', condition_after: null, return_status: 'borrowed', created_at: '2026-09-25T08:00:00Z' },
-  { id: '90000000-0000-0000-0000-000000000003', transaction_id: '80000000-0000-0000-0000-000000000003', equipment_id: '70000000-0000-0000-0000-000000000002', quantity: 2, returned_quantity: 0, condition_before: 'good', condition_after: null, return_status: 'borrowed', created_at: '2026-09-27T08:00:00Z' },
-  { id: '90000000-0000-0000-0000-000000000004', transaction_id: '80000000-0000-0000-0000-000000000004', equipment_id: '70000000-0000-0000-0000-000000000001', quantity: 1, returned_quantity: 0, condition_before: 'good', condition_after: null, return_status: 'borrowed', created_at: '2026-09-27T14:00:00Z' }
+  {
+    id: 'bi-1',
+    transaction_id: 'tx-101',
+    equipment_id: 'eq-6',
+    quantity: 2,
+    returned_quantity: 0,
+    condition_before: 'fair',
+    condition_after: null,
+    return_status: 'borrowed',
+    created_at: '2026-10-18T09:00:00Z'
+  },
+  {
+    id: 'bi-2',
+    transaction_id: 'tx-102',
+    equipment_id: 'eq-1',
+    quantity: 2,
+    returned_quantity: 0,
+    condition_before: 'good',
+    condition_after: null,
+    return_status: 'borrowed',
+    created_at: '2026-10-14T10:30:00Z'
+  },
+  {
+    id: 'bi-3',
+    transaction_id: 'tx-103',
+    equipment_id: 'eq-2',
+    quantity: 4,
+    returned_quantity: 0,
+    condition_before: 'good',
+    condition_after: null,
+    return_status: 'borrowed',
+    created_at: '2026-10-19T08:00:00Z'
+  },
+  {
+    id: 'bi-4',
+    transaction_id: 'tx-104',
+    equipment_id: 'eq-4',
+    quantity: 4,
+    returned_quantity: 4,
+    condition_before: 'good',
+    condition_after: 'good',
+    return_status: 'returned',
+    created_at: '2026-10-12T14:00:00Z'
+  }
+];
+
+// Realistic Coach Bookings (Student booking a coach)
+export const initialCoachBookings: CoachBooking[] = [
+  {
+    id: 'cb-1',
+    student_id: 'user-stu-1',
+    student_name: 'Riza Velasco',
+    student_school_id: '2024-00101',
+    coach_id: 'user-cch-1',
+    coach_name: 'Ace Arcamo',
+    coach_school_id: 'CCH-2021-088',
+    sport: 'Baseball',
+    booking_date: '2026-10-24',
+    time_slot: '09:00 AM - 10:30 AM',
+    purpose: 'Batting mechanics, stance adjustment, and strike zone discipline',
+    status: 'approved',
+    coach_notes: 'Confirmed. Bring personal batting gloves to Diamond 1.',
+    created_at: '2026-10-18T11:00:00Z'
+  },
+  {
+    id: 'cb-2',
+    student_id: 'user-stu-2',
+    student_name: 'Mark Bautista',
+    student_school_id: '2023-00452',
+    coach_id: 'user-cch-1',
+    coach_name: 'Ace Arcamo',
+    coach_school_id: 'CCH-2021-088',
+    sport: 'Baseball',
+    booking_date: '2026-10-26',
+    time_slot: '02:00 PM - 03:30 PM',
+    purpose: 'Bullpen pitch velocity and curveball grip coaching',
+    status: 'pending',
+    created_at: '2026-10-20T09:30:00Z'
+  },
+  {
+    id: 'cb-3',
+    student_id: 'user-stu-3',
+    student_name: 'Janine Cruz',
+    student_school_id: '2024-00789',
+    coach_id: 'user-cch-2',
+    coach_name: 'Maria Santos',
+    coach_school_id: 'CCH-2022-045',
+    sport: 'Volleyball',
+    booking_date: '2026-10-23',
+    time_slot: '10:00 AM - 11:30 AM',
+    purpose: 'Serve receive footwork and rotational defense positioning',
+    status: 'approved',
+    coach_notes: 'Approved. Court 2 at the Main Gymnasium.',
+    created_at: '2026-10-19T14:15:00Z'
+  }
+];
+
+// Realistic Staff Reports to Admin (Item broken by student/coach, unreturned on time)
+export const initialStaffReports: StaffReport[] = [
+  {
+    id: 'rep-1',
+    report_type: 'damaged_equipment',
+    item_id: 'eq-2',
+    item_name: 'Rawlings Heart of the Hide Fielding Glove 11.5"',
+    borrower_name: 'Mark Bautista',
+    borrower_role: 'student',
+    borrower_school_id: '2023-00452',
+    reported_by: 'Samuel Angelo Udtohan',
+    description: 'Leather lacing broke during aggressive diving drill. Needs professional relacing.',
+    severity: 'medium',
+    status: 'submitted',
+    created_at: '2026-10-19T16:20:00Z'
+  },
+  {
+    id: 'rep-2',
+    report_type: 'overdue_return',
+    item_id: 'eq-1',
+    item_name: 'Easton Alpha ALX (-3) Alloy Baseball Bat 33"',
+    borrower_name: 'Mark Bautista',
+    borrower_role: 'student',
+    borrower_school_id: '2023-00452',
+    reported_by: 'Samuel Angelo Udtohan',
+    description: 'Loan deadline expired on 2026-10-19. Borrower has not returned 2 bats despite alert sent.',
+    severity: 'high',
+    status: 'submitted',
+    created_at: '2026-10-20T08:30:00Z'
+  }
+];
+
+// Return alerts sent to students/coaches
+export const initialReturnAlerts: ReturnAlert[] = [
+  {
+    id: 'alt-1',
+    transaction_id: 'tx-102',
+    recipient_name: 'Mark Bautista',
+    recipient_school_id: '2023-00452',
+    recipient_role: 'student',
+    equipment_name: 'Easton Alpha ALX (-3) Alloy Baseball Bat 33"',
+    expected_return_date: '2026-10-19',
+    message: 'URGENT: Your equipment loan has exceeded its return deadline. Return immediately to the Equipment Desk.',
+    sent_at: '2026-10-20T08:15:00Z',
+    is_read: false
+  }
 ];
 
 export const initialMaintenanceRecords: MaintenanceRecord[] = [
   {
-    id: 'a0000000-0000-0000-0000-000000000001',
-    equipment_id: '70000000-0000-0000-0000-000000000005',
-    reported_by: '10000000-0000-0000-0000-000000000002',
-    issue_description: 'Re-glue peeling rubber surface on paddle B',
+    id: 'mr-1',
+    equipment_id: 'eq-2',
+    reported_by: 'user-stf-1',
+    issue_description: 'Relace webbing and replace torn finger lace on Rawlings glove',
     scheduled_date: '2026-10-25',
-    cost: 350.00,
-    status: 'in_progress',
-    created_at: '2026-10-10T00:00:00Z'
+    cost: 320.00,
+    status: 'pending',
+    created_at: '2026-10-19T16:20:00Z'
   }
 ];
 
 export const initialAuditLogs: AuditLog[] = [
   {
-    id: 'b0000000-0000-0000-0000-000000000001',
+    id: 'log-1',
     table_name: 'equipment',
-    record_id: '70000000-0000-0000-0000-000000000001',
+    record_id: 'eq-1',
     action_type: 'INSERT',
     old_data: null,
-    new_data: { name: 'Rawlings Alloy Baseball Bat 33-inch', total_quantity: 45, available_quantity: 45 },
-    performed_by: '10000000-0000-0000-0000-000000000001',
+    new_data: { name: 'Easton Alpha ALX Baseball Bat 33"', total_quantity: 24, available_quantity: 24 },
+    performed_by: 'user-adm-1',
     created_at: '2025-01-01T08:00:00Z'
-  },
-  {
-    id: 'b0000000-0000-0000-0000-000000000002',
-    table_name: 'equipment',
-    record_id: '70000000-0000-0000-0000-000000000003',
-    action_type: 'UPDATE',
-    old_data: { available_quantity: 21, status: 'available' },
-    new_data: { available_quantity: 20, status: 'available' },
-    performed_by: '10000000-0000-0000-0000-000000000002',
-    created_at: '2026-10-14T09:00:00Z'
   }
 ];
 
@@ -189,21 +591,78 @@ export function calculateOverdueDays(expectedDateStr: string, actualDateStr: str
   return diffDays > 0 ? diffDays : 0;
 }
 
+const STORAGE_USERS = 'falcon_registered_accounts';
+const STORAGE_EQUIPMENT = 'falcon_equipment_list';
+const STORAGE_TRANSACTIONS = 'falcon_transactions';
+const STORAGE_BOOKINGS = 'falcon_coach_bookings';
+const STORAGE_REPORTS = 'falcon_staff_reports';
+const STORAGE_ALERTS = 'falcon_return_alerts';
+
 class MockDatabaseStore {
-  roles = [...initialRoles];
-  users = [...initialUsers];
-  athletes = [...initialAthletes];
-  coaches = [...initialCoaches];
-  sports = [...initialSports];
-  teams = [...initialTeams];
-  teamMembers = [...initialTeamMembers];
-  equipment = [...initialEquipment];
-  borrowingTransactions = [...initialBorrowingTransactions];
-  borrowingItems = [...initialBorrowingItems];
-  maintenanceRecords = [...initialMaintenanceRecords];
-  auditLogs = [...initialAuditLogs];
+  registeredAccounts: RegisteredAccount[] = [];
+  roles: Role[] = [...initialRoles];
+  users: User[] = [...initialUsers];
+  athletes: Athlete[] = [...initialAthletes];
+  coaches: Coach[] = [...initialCoaches];
+  sports: Sport[] = [...initialSports];
+  teams: Team[] = [...initialTeams];
+  teamMembers: TeamMember[] = [...initialTeamMembers];
+  equipment: Equipment[] = [];
+  borrowingTransactions: BorrowingTransaction[] = [];
+  borrowingItems: BorrowingItem[] = [...initialBorrowingItems];
+  coachBookings: CoachBooking[] = [];
+  staffReports: StaffReport[] = [];
+  returnAlerts: ReturnAlert[] = [];
+  maintenanceRecords: MaintenanceRecord[] = [...initialMaintenanceRecords];
+  auditLogs: AuditLog[] = [...initialAuditLogs];
 
   private listeners: (() => void)[] = [];
+
+  constructor() {
+    this.initStorage();
+  }
+
+  private initStorage() {
+    try {
+      const storedUsers = localStorage.getItem(STORAGE_USERS);
+      this.registeredAccounts = storedUsers ? JSON.parse(storedUsers) : [...initialRegisteredAccounts];
+
+      const storedEq = localStorage.getItem(STORAGE_EQUIPMENT);
+      this.equipment = storedEq ? JSON.parse(storedEq) : [...initialEquipment];
+
+      const storedTx = localStorage.getItem(STORAGE_TRANSACTIONS);
+      this.borrowingTransactions = storedTx ? JSON.parse(storedTx) : [...initialBorrowingTransactions];
+
+      const storedBookings = localStorage.getItem(STORAGE_BOOKINGS);
+      this.coachBookings = storedBookings ? JSON.parse(storedBookings) : [...initialCoachBookings];
+
+      const storedReports = localStorage.getItem(STORAGE_REPORTS);
+      this.staffReports = storedReports ? JSON.parse(storedReports) : [...initialStaffReports];
+
+      const storedAlerts = localStorage.getItem(STORAGE_ALERTS);
+      this.returnAlerts = storedAlerts ? JSON.parse(storedAlerts) : [...initialReturnAlerts];
+    } catch {
+      this.registeredAccounts = [...initialRegisteredAccounts];
+      this.equipment = [...initialEquipment];
+      this.borrowingTransactions = [...initialBorrowingTransactions];
+      this.coachBookings = [...initialCoachBookings];
+      this.staffReports = [...initialStaffReports];
+      this.returnAlerts = [...initialReturnAlerts];
+    }
+  }
+
+  private persist() {
+    try {
+      localStorage.setItem(STORAGE_USERS, JSON.stringify(this.registeredAccounts));
+      localStorage.setItem(STORAGE_EQUIPMENT, JSON.stringify(this.equipment));
+      localStorage.setItem(STORAGE_TRANSACTIONS, JSON.stringify(this.borrowingTransactions));
+      localStorage.setItem(STORAGE_BOOKINGS, JSON.stringify(this.coachBookings));
+      localStorage.setItem(STORAGE_REPORTS, JSON.stringify(this.staffReports));
+      localStorage.setItem(STORAGE_ALERTS, JSON.stringify(this.returnAlerts));
+    } catch (e) {
+      console.warn('Storage save error:', e);
+    }
+  }
 
   subscribe(listener: () => void) {
     this.listeners.push(listener);
@@ -213,210 +672,123 @@ class MockDatabaseStore {
   }
 
   notify() {
+    this.persist();
     this.listeners.forEach(l => l());
   }
 
-  private triggerLogEquipmentAudit(actionType: 'INSERT' | 'UPDATE' | 'DELETE', oldData: unknown, newData: unknown, recordId: string, performedBy?: string) {
-    const log: AuditLog = {
-      id: crypto.randomUUID ? crypto.randomUUID() : 'log-' + Date.now(),
-      table_name: 'equipment',
-      record_id: recordId,
-      action_type: actionType,
-      old_data: oldData as Record<string, unknown> | null,
-      new_data: newData as Record<string, unknown> | null,
-      performed_by: performedBy || '10000000-0000-0000-0000-000000000002',
-      created_at: new Date().toISOString()
-    };
-    this.auditLogs.unshift(log);
+  // User & Registration operations (Requires School ID)
+  getRegisteredUsers(role?: UserRole): RegisteredAccount[] {
+    if (!role) return this.registeredAccounts;
+    return this.registeredAccounts.filter(u => u.role === role);
   }
 
-  addEquipment(eq: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>, performedBy?: string): Equipment {
+  registerUser(acc: Omit<RegisteredAccount, 'id' | 'created_at' | 'is_online' | 'status'>): RegisteredAccount {
+    if (!acc.school_id || !acc.school_id.trim()) {
+      throw new Error('School ID is required to register into the system.');
+    }
+    const cleanSchoolId = acc.school_id.trim().toUpperCase();
+    const existing = this.registeredAccounts.find(u => u.school_id.toUpperCase() === cleanSchoolId);
+    if (existing) {
+      throw new Error(`School ID ${cleanSchoolId} is already registered in the system.`);
+    }
+
+    const newAcc: RegisteredAccount = {
+      ...acc,
+      id: 'usr-' + Date.now(),
+      school_id: cleanSchoolId,
+      is_online: true,
+      status: 'active',
+      created_at: new Date().toISOString()
+    };
+    this.registeredAccounts.unshift(newAcc);
+
+    // Also register in users table
+    this.users.push({
+      id: newAcc.id,
+      email: `${newAcc.username}@falcon.edu`,
+      full_name: newAcc.full_name,
+      role_id: newAcc.role === 'admin' ? 'role-1' : newAcc.role === 'staff' ? 'role-2' : newAcc.role === 'coach' ? 'role-3' : 'role-4',
+      school_id: newAcc.school_id,
+      status: 'active',
+      is_online: true,
+      created_at: newAcc.created_at
+    });
+
+    if (newAcc.role === 'student') {
+      this.athletes.push({
+        id: 'ath-' + Date.now(),
+        user_id: newAcc.id,
+        student_number: newAcc.school_id,
+        department: newAcc.department || 'General Athletics',
+        year_level: 1,
+        emergency_contact: 'Campus Registry',
+        created_at: newAcc.created_at
+      });
+    } else if (newAcc.role === 'coach') {
+      this.coaches.push({
+        id: 'cch-' + Date.now(),
+        user_id: newAcc.id,
+        employee_number: newAcc.school_id,
+        specialization: newAcc.specialization || 'Athletic Coaching',
+        license_level: 'Certified Coach',
+        available_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        available_hours: '08:00 AM - 05:00 PM',
+        created_at: newAcc.created_at
+      });
+    }
+
+    this.notify();
+    return newAcc;
+  }
+
+  toggleOnlineStatus(schoolId: string) {
+    const user = this.registeredAccounts.find(u => u.school_id.toUpperCase() === schoolId.toUpperCase());
+    if (user) {
+      user.is_online = !user.is_online;
+      this.notify();
+    }
+  }
+
+  // Equipment CRUD
+  addEquipment(eq: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>, _performedBy?: string): Equipment {
     const newEq: Equipment = {
       ...eq,
-      id: crypto.randomUUID ? crypto.randomUUID() : 'eq-' + Date.now(),
+      id: 'eq-' + Date.now(),
+      available_days: eq.available_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
-    this.equipment.push(newEq);
-    this.triggerLogEquipmentAudit('INSERT', null, newEq, newEq.id, performedBy);
+    this.equipment.unshift(newEq);
     this.notify();
     return newEq;
   }
 
-  updateEquipment(id: string, updates: Partial<Equipment>, performedBy?: string): Equipment {
+  updateEquipment(id: string, updates: Partial<Equipment>, _performedBy?: string): Equipment {
     const index = this.equipment.findIndex(e => e.id === id);
     if (index === -1) throw new Error(`Equipment with id ${id} not found.`);
     const oldEq = { ...this.equipment[index] };
     const newEq = { ...oldEq, ...updates, updated_at: new Date().toISOString() };
     this.equipment[index] = newEq;
-    this.triggerLogEquipmentAudit('UPDATE', oldEq, newEq, id, performedBy);
     this.notify();
     return newEq;
   }
 
-  deleteEquipment(id: string, performedBy?: string): void {
-    const inBorrowing = this.borrowingItems.some(bi => bi.equipment_id === id);
+  deleteEquipment(id: string, _performedBy?: string): void {
+    const inBorrowing = this.borrowingTransactions.some(
+      t => t.status === 'active' && t.items?.some(i => i.equipment_id === id)
+    );
     if (inBorrowing) {
-      throw new Error('Cannot delete equipment: Referenced by existing borrowing records (ON DELETE RESTRICT violation).');
+      throw new Error('Cannot delete equipment: Active borrowing loan exists.');
     }
     const index = this.equipment.findIndex(e => e.id === id);
     if (index === -1) throw new Error(`Equipment with id ${id} not found.`);
-    const oldEq = { ...this.equipment[index] };
     this.equipment.splice(index, 1);
-    this.triggerLogEquipmentAudit('DELETE', oldEq, null, id, performedBy);
     this.notify();
-  }
-
-  checkoutEquipment(
-    athleteId: string,
-    items: { equipment_id: string; quantity: number; condition?: string }[],
-    expectedReturnDate: string,
-    approvedBy?: string,
-    remarks?: string
-  ): { success: boolean; transaction_id: string; message: string } {
-    const today = new Date().toISOString().split('T')[0];
-    if (expectedReturnDate < today) {
-      throw new Error(`Expected return date (${expectedReturnDate}) cannot be in the past.`);
-    }
-
-    const athlete = this.athletes.find(a => a.id === athleteId);
-    if (!athlete) throw new Error(`Athlete ID (${athleteId}) does not exist.`);
-
-    if (!items || items.length === 0) throw new Error('Checkout must contain at least one item.');
-
-    for (const item of items) {
-      const eq = this.equipment.find(e => e.id === item.equipment_id);
-      if (!eq) throw new Error(`Equipment ID ${item.equipment_id} not found.`);
-      if (eq.available_quantity < item.quantity) {
-        throw new Error(`Insufficient stock for "${eq.name}": requested ${item.quantity}, available ${eq.available_quantity}.`);
-      }
-    }
-
-    const txId = crypto.randomUUID ? crypto.randomUUID() : 'tx-' + Date.now();
-    const newTx: BorrowingTransaction = {
-      id: txId,
-      athlete_id: athleteId,
-      approved_by: approvedBy || '10000000-0000-0000-0000-000000000002',
-      borrow_date: new Date().toISOString(),
-      expected_return_date: expectedReturnDate,
-      actual_return_date: null,
-      status: 'active',
-      remarks: remarks || null,
-      created_at: new Date().toISOString()
-    };
-    this.borrowingTransactions.unshift(newTx);
-
-    for (const item of items) {
-      const eqIndex = this.equipment.findIndex(e => e.id === item.equipment_id);
-      const oldEq = { ...this.equipment[eqIndex] };
-      const newAvail = oldEq.available_quantity - item.quantity;
-      let newStatus: Equipment['status'] = 'available';
-      if (newAvail === 0) newStatus = 'out_of_stock';
-      else if (newAvail <= 2) newStatus = 'low_stock';
-
-      this.equipment[eqIndex] = {
-        ...oldEq,
-        available_quantity: newAvail,
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      };
-
-      this.triggerLogEquipmentAudit('UPDATE', oldEq, this.equipment[eqIndex], oldEq.id, approvedBy);
-
-      const bi: BorrowingItem = {
-        id: crypto.randomUUID ? crypto.randomUUID() : 'bi-' + Date.now() + Math.random(),
-        transaction_id: txId,
-        equipment_id: item.equipment_id,
-        quantity: item.quantity,
-        returned_quantity: 0,
-        condition_before: item.condition || oldEq.condition,
-        condition_after: null,
-        return_status: 'borrowed',
-        created_at: new Date().toISOString()
-      };
-      this.borrowingItems.push(bi);
-    }
-
-    this.notify();
-    return {
-      success: true,
-      transaction_id: txId,
-      message: 'Equipment checkout successfully executed with ACID transaction safety.'
-    };
-  }
-
-  returnBorrowedItems(
-    transactionId: string,
-    items: { item_id: string; returned_quantity: number; condition_after?: string }[],
-    receivedBy?: string
-  ): { success: boolean; message: string } {
-    const tx = this.borrowingTransactions.find(t => t.id === transactionId);
-    if (!tx) throw new Error(`Borrowing transaction ${transactionId} not found.`);
-
-    for (const item of items) {
-      const biIndex = this.borrowingItems.findIndex(i => i.id === item.item_id);
-      if (biIndex !== -1) {
-        const oldItem = { ...this.borrowingItems[biIndex] };
-        const delta = item.returned_quantity - oldItem.returned_quantity;
-
-        if (delta > 0) {
-          const eqIndex = this.equipment.findIndex(e => e.id === oldItem.equipment_id);
-          if (eqIndex !== -1) {
-            const eq = { ...this.equipment[eqIndex] };
-            const newAvail = Math.min(eq.total_quantity, eq.available_quantity + delta);
-            let newStatus: Equipment['status'] = 'available';
-            if (newAvail === 0) newStatus = 'out_of_stock';
-            else if (newAvail <= 2) newStatus = 'low_stock';
-
-            this.equipment[eqIndex] = {
-              ...eq,
-              available_quantity: newAvail,
-              status: newStatus,
-              updated_at: new Date().toISOString()
-            };
-            this.triggerLogEquipmentAudit('UPDATE', eq, this.equipment[eqIndex], eq.id, receivedBy);
-          }
-        }
-
-        const newReturnStatus: BorrowingItem['return_status'] =
-          item.returned_quantity >= oldItem.quantity ? 'returned' : item.returned_quantity > 0 ? 'partial' : 'borrowed';
-
-        this.borrowingItems[biIndex] = {
-          ...oldItem,
-          returned_quantity: item.returned_quantity,
-          condition_after: item.condition_after || oldItem.condition_before,
-          return_status: newReturnStatus
-        };
-      }
-    }
-
-    const txItems = this.borrowingItems.filter(i => i.transaction_id === transactionId);
-    const unreturned = txItems.filter(i => i.returned_quantity < i.quantity).length;
-
-    const txIndex = this.borrowingTransactions.findIndex(t => t.id === transactionId);
-    if (unreturned === 0) {
-      this.borrowingTransactions[txIndex] = {
-        ...this.borrowingTransactions[txIndex],
-        status: 'returned',
-        actual_return_date: new Date().toISOString()
-      };
-    } else {
-      this.borrowingTransactions[txIndex] = {
-        ...this.borrowingTransactions[txIndex],
-        status: 'partially_returned'
-      };
-    }
-
-    this.notify();
-    return { success: true, message: 'Items returned and stock replenished.' };
   }
 
   addTeamMember(teamId: string, athleteId: string, position: string, jerseyNumber?: number): TeamMember {
-    const exists = this.teamMembers.some(tm => tm.team_id === teamId && tm.athlete_id === athleteId);
-    if (exists) throw new Error('Athlete is already a member of this team (Composite Unique constraint violation).');
-
     const newTm: TeamMember = {
-      id: crypto.randomUUID ? crypto.randomUUID() : 'tm-' + Date.now(),
+      id: 'tm-' + Date.now(),
       team_id: teamId,
       athlete_id: athleteId,
       position,
@@ -432,7 +804,7 @@ class MockDatabaseStore {
 
   addMaintenanceRecord(equipmentId: string, reportedBy: string, issue: string, scheduledDate: string, cost: number): MaintenanceRecord {
     const rec: MaintenanceRecord = {
-      id: crypto.randomUUID ? crypto.randomUUID() : 'mr-' + Date.now(),
+      id: 'mr-' + Date.now(),
       equipment_id: equipmentId,
       reported_by: reportedBy,
       issue_description: issue,
@@ -446,20 +818,225 @@ class MockDatabaseStore {
     return rec;
   }
 
+  // Student & Coach direct borrowing
+  borrowEquipmentDirect(
+    borrowerName: string,
+    borrowerRole: 'student' | 'coach',
+    borrowerSchoolId: string,
+    equipmentId: string,
+    quantity: number,
+    expectedReturnDate: string,
+    remarks?: string
+  ): BorrowingTransaction {
+    const eq = this.equipment.find(e => e.id === equipmentId);
+    if (!eq) throw new Error('Equipment not found.');
+    if (eq.available_quantity < quantity) {
+      throw new Error(`Insufficient stock. Only ${eq.available_quantity} available.`);
+    }
+
+    // Decrement stock
+    eq.available_quantity -= quantity;
+    if (eq.available_quantity === 0) eq.status = 'out_of_stock';
+    else if (eq.available_quantity <= 2) eq.status = 'low_stock';
+    eq.updated_at = new Date().toISOString();
+
+    const newTx: BorrowingTransaction = {
+      id: 'tx-' + Date.now(),
+      athlete_id: borrowerSchoolId,
+      borrower_name: borrowerName,
+      borrower_role: borrowerRole,
+      borrower_school_id: borrowerSchoolId,
+      approved_by: 'Staff Desk',
+      borrow_date: new Date().toISOString(),
+      expected_return_date: expectedReturnDate,
+      actual_return_date: null,
+      status: 'active',
+      remarks: remarks || `${borrowerRole.toUpperCase()} practice loan`,
+      created_at: new Date().toISOString(),
+      items: [
+        {
+          id: 'bi-' + Date.now(),
+          transaction_id: 'tx-' + Date.now(),
+          equipment_id: equipmentId,
+          quantity: quantity,
+          returned_quantity: 0,
+          condition_before: eq.condition,
+          condition_after: null,
+          return_status: 'borrowed',
+          created_at: new Date().toISOString(),
+          equipment: eq
+        }
+      ]
+    };
+
+    this.borrowingTransactions.unshift(newTx);
+    this.notify();
+    return newTx;
+  }
+
+  checkoutEquipment(
+    athleteId: string,
+    items: { equipment_id: string; quantity: number; condition?: string }[],
+    expectedReturnDate: string,
+    _approvedBy?: string,
+    remarks?: string
+  ): { success: boolean; transaction_id: string; message: string } {
+    const user = this.registeredAccounts.find(u => u.school_id === athleteId || u.id === athleteId);
+    const borrowerName = user?.full_name || 'Borrower';
+    const borrowerRole = (user?.role === 'coach' ? 'coach' : 'student') as 'student' | 'coach';
+    const borrowerSchoolId = user?.school_id || athleteId;
+
+    let lastTxId = 'tx-' + Date.now();
+    for (const item of items) {
+      const tx = this.borrowEquipmentDirect(
+        borrowerName,
+        borrowerRole,
+        borrowerSchoolId,
+        item.equipment_id,
+        item.quantity,
+        expectedReturnDate,
+        remarks
+      );
+      lastTxId = tx.id;
+    }
+    return { success: true, transaction_id: lastTxId, message: 'Equipment checked out successfully.' };
+  }
+
+  // Return equipment
+  returnBorrowedItems(
+    transactionId: string,
+    itemsOrCondition?: unknown,
+    _receivedBy?: string
+  ): { success: boolean; message: string } {
+    const tx = this.borrowingTransactions.find(t => t.id === transactionId);
+    if (!tx) throw new Error('Transaction not found.');
+
+    const conditionAfter: Equipment['condition'] = typeof itemsOrCondition === 'string' ? itemsOrCondition as Equipment['condition'] : 'good';
+
+    tx.status = 'returned';
+    tx.actual_return_date = new Date().toISOString();
+
+    if (tx.items) {
+      for (const item of tx.items) {
+        item.returned_quantity = item.quantity;
+        item.return_status = 'returned';
+        item.condition_after = conditionAfter;
+
+        // Restore equipment stock
+        const eq = this.equipment.find(e => e.id === item.equipment_id);
+        if (eq) {
+          eq.available_quantity = Math.min(eq.total_quantity, eq.available_quantity + item.quantity);
+          eq.condition = conditionAfter;
+          if (conditionAfter === 'damaged' || conditionAfter === 'needs_maintenance') {
+            eq.status = 'under_maintenance';
+          } else {
+            eq.status = 'available';
+          }
+          eq.updated_at = new Date().toISOString();
+        }
+      }
+    }
+
+    this.notify();
+    return { success: true, message: 'Items returned and stock replenished.' };
+  }
+
+  // Staff alerts to student or coach
+  sendReturnAlert(
+    transactionId: string,
+    recipientName: string,
+    recipientSchoolId: string,
+    recipientRole: 'student' | 'coach',
+    equipmentName: string,
+    expectedReturnDate: string,
+    customMessage?: string
+  ): ReturnAlert {
+    const tx = this.borrowingTransactions.find(t => t.id === transactionId);
+    if (tx) {
+      tx.alert_sent = true;
+      tx.last_alert_sent = new Date().toISOString();
+    }
+
+    const alert: ReturnAlert = {
+      id: 'alt-' + Date.now(),
+      transaction_id: transactionId,
+      recipient_name: recipientName,
+      recipient_school_id: recipientSchoolId,
+      recipient_role: recipientRole,
+      equipment_name: equipmentName,
+      expected_return_date: expectedReturnDate,
+      message: customMessage || `NOTICE: Equipment loan for "${equipmentName}" due on ${expectedReturnDate}. Please return to the Equipment Desk promptly.`,
+      sent_at: new Date().toISOString(),
+      is_read: false
+    };
+
+    this.returnAlerts.unshift(alert);
+    this.notify();
+    return alert;
+  }
+
+  markAlertRead(alertId: string) {
+    const alert = this.returnAlerts.find(a => a.id === alertId);
+    if (alert) {
+      alert.is_read = true;
+      this.notify();
+    }
+  }
+
+  // Coach booking requests
+  createCoachBooking(booking: Omit<CoachBooking, 'id' | 'created_at' | 'status'>): CoachBooking {
+    const newBooking: CoachBooking = {
+      ...booking,
+      id: 'cb-' + Date.now(),
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+    this.coachBookings.unshift(newBooking);
+    this.notify();
+    return newBooking;
+  }
+
+  updateCoachBookingStatus(bookingId: string, status: CoachBooking['status'], coachNotes?: string): CoachBooking {
+    const b = this.coachBookings.find(item => item.id === bookingId);
+    if (!b) throw new Error('Booking not found.');
+    b.status = status;
+    if (coachNotes !== undefined) b.coach_notes = coachNotes;
+    this.notify();
+    return b;
+  }
+
+  // Staff Reports to Admin (Damaged equipment / Overdue returns)
+  submitStaffReport(report: Omit<StaffReport, 'id' | 'created_at' | 'status'>): StaffReport {
+    const newReport: StaffReport = {
+      ...report,
+      id: 'rep-' + Date.now(),
+      status: 'submitted',
+      created_at: new Date().toISOString()
+    };
+    this.staffReports.unshift(newReport);
+    this.notify();
+    return newReport;
+  }
+
+  updateStaffReportStatus(reportId: string, status: StaffReport['status']): StaffReport {
+    const r = this.staffReports.find(item => item.id === reportId);
+    if (!r) throw new Error('Report not found.');
+    r.status = status;
+    this.notify();
+    return r;
+  }
+
+  // Legacy view calculations for backwards compatibility
   getActiveLoansView(): ActiveLoansSummaryView[] {
     return this.borrowingTransactions.map(tx => {
-      const athlete = this.athletes.find(a => a.id === tx.athlete_id);
-      const user = athlete ? this.users.find(u => u.id === athlete.user_id) : null;
-      const staff = tx.approved_by ? this.users.find(u => u.id === tx.approved_by) : null;
-      const items = this.borrowingItems.filter(i => i.transaction_id === tx.id);
-
-      const totalBorrowed = items.reduce((sum, i) => sum + i.quantity, 0);
+      const items = tx.items || [];
+      const totalBorrowed = items.reduce((sum, i) => sum + i.quantity, 0) || 1;
       const totalReturned = items.reduce((sum, i) => sum + i.returned_quantity, 0);
       const overdue = calculateOverdueDays(tx.expected_return_date, tx.actual_return_date);
 
       let urgency: ActiveLoansSummaryView['loan_urgency'] = 'Active / On Schedule';
       if (tx.status === 'returned') urgency = 'Returned on Time';
-      else if (overdue > 0) urgency = 'OVERDUE';
+      else if (overdue > 0 || tx.status === 'overdue') urgency = 'OVERDUE';
 
       return {
         transaction_id: tx.id,
@@ -469,14 +1046,14 @@ class MockDatabaseStore {
         transaction_status: tx.status,
         remarks: tx.remarks,
         athlete_id: tx.athlete_id,
-        student_number: athlete?.student_number || 'N/A',
-        athlete_name: user?.full_name || 'Unknown Athlete',
-        department: athlete?.department || 'N/A',
-        athlete_email: user?.email || '',
-        approved_by_name: staff?.full_name || null,
+        student_number: tx.borrower_school_id || tx.athlete_id,
+        athlete_name: tx.borrower_name || 'Borrower',
+        department: tx.borrower_role ? tx.borrower_role.toUpperCase() : 'Athletics',
+        athlete_email: `${tx.borrower_name?.toLowerCase().replace(/\s+/g, '.') || 'user'}@falcon.edu`,
+        approved_by_name: tx.approved_by || 'Staff Desk',
         overdue_days: overdue,
         loan_urgency: urgency,
-        total_equipment_lines: items.length,
+        total_equipment_lines: items.length || 1,
         total_units_borrowed: totalBorrowed,
         total_units_returned: totalReturned,
         outstanding_units: totalBorrowed - totalReturned
@@ -489,7 +1066,6 @@ class MockDatabaseStore {
       const sport = this.sports.find(s => s.id === eq.sport_id);
       const currentlyBorrowed = eq.total_quantity - eq.available_quantity;
       const utilPct = eq.total_quantity > 0 ? Math.round((currentlyBorrowed / eq.total_quantity) * 1000) / 10 : 0;
-      const activeMaintenance = this.maintenanceRecords.filter(m => m.equipment_id === eq.id && (m.status === 'pending' || m.status === 'in_progress')).length;
 
       let health: EquipmentInventoryStatusView['stock_health_status'] = 'OPTIMAL';
       if (eq.available_quantity === 0) health = 'OUT_OF_STOCK';
@@ -509,7 +1085,7 @@ class MockDatabaseStore {
         condition: eq.condition,
         status: eq.status,
         stock_health_status: health,
-        active_maintenance_jobs: activeMaintenance,
+        active_maintenance_jobs: 0,
         last_updated: eq.updated_at
       };
     });

@@ -12,9 +12,26 @@ export interface User {
   email: string;
   full_name: string;
   role_id: string;
+  school_id?: string;
   status: 'active' | 'inactive' | 'suspended';
+  is_online?: boolean;
+  last_active?: string;
   created_at: string;
   role?: Role;
+}
+
+export interface RegisteredAccount {
+  id: string;
+  school_id: string;
+  full_name: string;
+  username: string;
+  password?: string;
+  role: UserRole;
+  department?: string;
+  specialization?: string;
+  is_online: boolean;
+  status: 'active' | 'suspended';
+  created_at: string;
 }
 
 export interface Athlete {
@@ -34,6 +51,8 @@ export interface Coach {
   employee_number: string;
   specialization: string;
   license_level: string;
+  available_days?: string[];
+  available_hours?: string;
   created_at: string;
   user?: User;
 }
@@ -81,6 +100,9 @@ export interface Equipment {
   available_quantity: number;
   condition: 'new' | 'good' | 'fair' | 'needs_maintenance' | 'damaged';
   status: 'available' | 'low_stock' | 'out_of_stock' | 'under_maintenance' | 'retired';
+  available_days?: string[]; // e.g. ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  condition_notes?: string;
+  last_inspected?: string;
   created_at: string;
   updated_at: string;
   sport?: Sport;
@@ -89,6 +111,9 @@ export interface Equipment {
 export interface BorrowingTransaction {
   id: string;
   athlete_id: string;
+  borrower_name?: string;
+  borrower_role?: 'student' | 'coach';
+  borrower_school_id?: string;
   approved_by: string | null;
   borrow_date: string;
   expected_return_date: string;
@@ -99,6 +124,8 @@ export interface BorrowingTransaction {
   athlete?: Athlete;
   approver?: User;
   items?: BorrowingItem[];
+  alert_sent?: boolean;
+  last_alert_sent?: string;
 }
 
 export interface BorrowingItem {
@@ -112,6 +139,54 @@ export interface BorrowingItem {
   return_status: 'borrowed' | 'returned' | 'damaged' | 'lost' | 'partial';
   created_at: string;
   equipment?: Equipment;
+}
+
+// Student booking a Coach
+export interface CoachBooking {
+  id: string;
+  student_id: string;
+  student_name: string;
+  student_school_id: string;
+  coach_id: string;
+  coach_name: string;
+  coach_school_id: string;
+  sport: string;
+  booking_date: string;
+  time_slot: string;
+  purpose: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  coach_notes?: string;
+  created_at: string;
+}
+
+// Staff Incident / Violation Report to Admin
+export interface StaffReport {
+  id: string;
+  report_type: 'damaged_equipment' | 'overdue_return';
+  item_id?: string;
+  item_name?: string;
+  borrower_name: string;
+  borrower_role: 'student' | 'coach';
+  borrower_school_id: string;
+  reported_by: string; // Staff member name
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  status: 'submitted' | 'reviewed' | 'resolved';
+  created_at: string;
+}
+
+// Staff alert sent to Student or Coach regarding return deadline
+export interface ReturnAlert {
+  id: string;
+  transaction_id: string;
+  recipient_name: string;
+  recipient_school_id: string;
+  recipient_role: 'student' | 'coach';
+  equipment_name: string;
+  expected_return_date: string;
+  message: string;
+  sent_at: string;
+  is_read: boolean;
 }
 
 export interface MaintenanceRecord {

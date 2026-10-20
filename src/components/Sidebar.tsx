@@ -5,7 +5,7 @@ interface SidebarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   currentRole: UserRole;
-  setCurrentRole: (role: UserRole) => void;
+  setCurrentRole?: (role: UserRole) => void;
   userDisplayName: string;
   username: string;
   isOpen?: boolean;
@@ -17,9 +17,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   setCurrentTab,
   currentRole,
-  setCurrentRole: _setCurrentRole,
-  userDisplayName: _userDisplayName,
-  username: _username,
+  userDisplayName,
+  username,
   isOpen = false,
   onClose,
   onLogout
@@ -45,136 +44,58 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* SCROLLABLE NAVIGATION AREA */}
       <div className="sidebar-scroll-area">
-        {/* BRAND / LOGO ONLY (Exact match to screenshots) */}
+        {/* BRAND / LOGO ONLY */}
         <div className="sidebar-brand">
           <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
             <img src="/images/Logo.png" alt="Falcon Athletics Logo" />
           </div>
         </div>
 
-        <ul className="sidebar-nav mt-3">
-          {/* MENU SECTION */}
-          <div className="sidebar-section-title">Menu</div>
-          <li>
-            <button
-              onClick={() => handleNav('dashboard')}
-              className={currentTab === 'dashboard' ? 'active' : ''}
-            >
-              <i className="bi bi-grid-fill"></i>
-              <span>Dashboard</span>
-            </button>
-          </li>
+        {/* LOGGED IN USER PILL */}
+        <div className="px-3 py-2 mb-2">
+          <div className="p-2 rounded-3" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div className="text-white fw-bold small text-truncate">{userDisplayName}</div>
+            <div className="d-flex justify-content-between align-items-center mt-1">
+              <span className="badge rounded-pill text-capitalize" style={{ background: 'var(--coral)', fontSize: '0.68rem', padding: '0.2rem 0.5rem' }}>
+                {currentRole}
+              </span>
+              <small className="text-muted" style={{ fontSize: '0.7rem' }}>@{username}</small>
+            </div>
+          </div>
+        </div>
 
-          {/* ADMIN PORTAL LINKS */}
+        <ul className="sidebar-nav mt-1">
+          {/* ==========================================================
+              1. ADMIN PORTAL (Only Dashboard is shown)
+              ========================================================== */}
           {currentRole === 'admin' && (
             <>
-              <div className="sidebar-section-title">Management</div>
+              <div className="sidebar-section-title">Menu</div>
               <li>
                 <button
-                  onClick={() => handleNav('equipment')}
-                  className={currentTab === 'equipment' ? 'active' : ''}
+                  onClick={() => handleNav('dashboard')}
+                  className={currentTab === 'dashboard' ? 'active' : ''}
                 >
-                  <i className="bi bi-box-seam"></i>
-                  <span>Equipment Stock</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('borrowing')}
-                  className={currentTab === 'borrowing' ? 'active' : ''}
-                >
-                  <i className="bi bi-arrow-left-right"></i>
-                  <span>Borrowing</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('maintenance')}
-                  className={currentTab === 'maintenance' ? 'active' : ''}
-                >
-                  <i className="bi bi-tools"></i>
-                  <span>Maintenance</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('athletes')}
-                  className={currentTab === 'athletes' ? 'active' : ''}
-                >
-                  <i className="bi bi-people"></i>
-                  <span>Athletes</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('coaches')}
-                  className={currentTab === 'coaches' ? 'active' : ''}
-                >
-                  <i className="bi bi-person-badge"></i>
-                  <span>Coaches</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('teams')}
-                  className={currentTab === 'teams' ? 'active' : ''}
-                >
-                  <i className="bi bi-diagram-3"></i>
-                  <span>Teams</span>
-                </button>
-              </li>
-
-              <div className="sidebar-section-title">Database & Records</div>
-              <li>
-                <button
-                  onClick={() => handleNav('users')}
-                  className={currentTab === 'users' ? 'active' : ''}
-                >
-                  <i className="bi bi-shield-lock"></i>
-                  <span>Users & Roles</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('audit')}
-                  className={currentTab === 'audit' ? 'active' : ''}
-                >
-                  <i className="bi bi-journal-text"></i>
-                  <span>Audit Logs</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('defense')}
-                  className={currentTab === 'defense' ? 'active' : ''}
-                >
-                  <i className="bi bi-file-earmark-bar-graph"></i>
-                  <span>Reports (Views)</span>
+                  <i className="bi bi-grid-fill"></i>
+                  <span>Dashboard</span>
                 </button>
               </li>
             </>
           )}
 
-          {/* STAFF PORTAL LINKS (Screenshot 3) */}
+          {/* ==========================================================
+              2. STAFF PORTAL (Added to Sidebar as requested)
+              ========================================================== */}
           {currentRole === 'staff' && (
             <>
-              <div className="sidebar-section-title">Equipment Desk</div>
+              <div className="sidebar-section-title">Operations</div>
               <li>
                 <button
                   onClick={() => handleNav('equipment')}
-                  className={currentTab === 'equipment' ? 'active' : ''}
+                  className={currentTab === 'equipment' || currentTab === 'dashboard' ? 'active' : ''}
                 >
                   <i className="bi bi-box-seam"></i>
-                  <span>Equipment Inventory</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('checkout')}
-                  className={currentTab === 'checkout' ? 'active' : ''}
-                >
-                  <i className="bi bi-cart-plus"></i>
-                  <span>New Borrowing</span>
+                  <span>Equipment & Days</span>
                 </button>
               </li>
               <li>
@@ -183,50 +104,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={currentTab === 'borrowing' ? 'active' : ''}
                 >
                   <i className="bi bi-arrow-left-right"></i>
-                  <span>Active Loans & Returns</span>
+                  <span>Borrowers & Alerts</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => handleNav('maintenance')}
-                  className={currentTab === 'maintenance' ? 'active' : ''}
+                  onClick={() => handleNav('bookings')}
+                  className={currentTab === 'bookings' ? 'active' : ''}
                 >
-                  <i className="bi bi-tools"></i>
-                  <span>Maintenance Queue</span>
+                  <i className="bi bi-calendar2-check"></i>
+                  <span>Student Bookings</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => handleNav('reports')}
+                  className={currentTab === 'reports' ? 'active' : ''}
+                >
+                  <i className="bi bi-flag-fill"></i>
+                  <span>Reports to Admin</span>
                 </button>
               </li>
             </>
           )}
 
-          {/* COACH PORTAL LINKS */}
+          {/* ==========================================================
+              3. COACH PORTAL (Added to Sidebar as requested)
+              ========================================================== */}
           {currentRole === 'coach' && (
             <>
-              <div className="sidebar-section-title">Coaching & Squads</div>
+              <div className="sidebar-section-title">Coaching</div>
               <li>
                 <button
-                  onClick={() => handleNav('teams')}
-                  className={currentTab === 'teams' ? 'active' : ''}
+                  onClick={() => handleNav('dashboard')}
+                  className={currentTab === 'dashboard' ? 'active' : ''}
                 >
-                  <i className="bi bi-diagram-3"></i>
-                  <span>My Teams & Rosters</span>
+                  <i className="bi bi-grid-fill"></i>
+                  <span>Coach Dashboard</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => handleNav('athletes')}
-                  className={currentTab === 'athletes' ? 'active' : ''}
+                  onClick={() => handleNav('bookings')}
+                  className={currentTab === 'bookings' ? 'active' : ''}
                 >
-                  <i className="bi bi-people"></i>
-                  <span>Athletes Directory</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('equipment')}
-                  className={currentTab === 'equipment' ? 'active' : ''}
-                >
-                  <i className="bi bi-box-seam"></i>
-                  <span>Team Equipment</span>
+                  <i className="bi bi-calendar-check"></i>
+                  <span>Student Bookings</span>
                 </button>
               </li>
               <li>
@@ -234,21 +157,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => handleNav('borrowing')}
                   className={currentTab === 'borrowing' ? 'active' : ''}
                 >
-                  <i className="bi bi-arrow-left-right"></i>
-                  <span>Gear Checkouts</span>
+                  <i className="bi bi-box-seam"></i>
+                  <span>Borrow Equipment</span>
                 </button>
               </li>
             </>
           )}
 
-          {/* STUDENT / ATHLETE LINKS (Screenshot 4) */}
+          {/* ==========================================================
+              4. STUDENT PORTAL (Added to Sidebar as requested)
+              ========================================================== */}
           {currentRole === 'student' && (
             <>
-              <div className="sidebar-section-title">Student Athlete</div>
+              <div className="sidebar-section-title">Athletics</div>
               <li>
                 <button
                   onClick={() => handleNav('equipment')}
-                  className={currentTab === 'equipment' ? 'active' : ''}
+                  className={currentTab === 'equipment' || currentTab === 'dashboard' ? 'active' : ''}
                 >
                   <i className="bi bi-box-seam"></i>
                   <span>Available Equipment</span>
@@ -256,29 +181,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => handleNav('request_loan')}
-                  className={currentTab === 'request_loan' ? 'active' : ''}
+                  onClick={() => handleNav('bookings')}
+                  className={currentTab === 'bookings' ? 'active' : ''}
                 >
-                  <i className="bi bi-hand-index-thumb"></i>
-                  <span>Request Loan</span>
+                  <i className="bi bi-calendar2-plus"></i>
+                  <span>Book a Coach</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => handleNav('borrowing')}
-                  className={currentTab === 'borrowing' ? 'active' : ''}
+                  onClick={() => handleNav('activity')}
+                  className={currentTab === 'activity' ? 'active' : ''}
                 >
                   <i className="bi bi-clock-history"></i>
-                  <span>My Borrowings</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => handleNav('report_damage')}
-                  className={currentTab === 'report_damage' ? 'active' : ''}
-                >
-                  <i className="bi bi-exclamation-octagon"></i>
-                  <span>Report Damage</span>
+                  <span>My Loans & Bookings</span>
                 </button>
               </li>
             </>

@@ -1008,3 +1008,90 @@ body {
     border-radius: 20px;
   }
 }
+
+/* ==========================================================================
+   INTRO ANIMATION  — transforms driven by JS inline styles (no class-switch teleport)
+   ========================================================================== */
+.intro-animation-screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #1E2858 0%, #0D132E 60%, #070A1A 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  overflow: hidden;
+}
+
+/* Coral radial glow — pure CSS animation, no conflict */
+.intro-radial-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255, 111, 89, 0.28) 0%,
+    rgba(255, 83, 59, 0.12) 50%,
+    transparent 70%
+  );
+  filter: blur(40px);
+  pointer-events: none;
+  animation: glowPulse 3s ease-in-out infinite alternate;
+}
+
+@keyframes glowPulse {
+  0%   { transform: scale(0.85); opacity: 0.5; }
+  100% { transform: scale(1.20); opacity: 0.9; }
+}
+
+/* Logo container — transforms set entirely via JS inline styles */
+.intro-logo-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  will-change: transform, opacity, filter;
+}
+
+/* Logo image base */
+.intro-logo-image {
+  max-width: 320px;
+  max-height: 200px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Vibrate animation on the IMAGE during screech — doesn't touch container transform */
+.intro-logo-image.vibrating {
+  animation: screechVibrate 0.85s ease-in-out forwards;
+}
+
+@keyframes screechVibrate {
+  0%, 100% { transform: scale(1);                      }
+  20%, 60%  { transform: scale(1.03) rotate(-1.5deg);  }
+  40%, 80%  { transform: scale(1.03) rotate( 1.5deg);  }
+}
+
+/* Burst ring — self-contained, no conflict with transitions */
+.intro-screech-burst {
+  position: absolute;
+  inset: -60px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 111, 89, 0.8);
+  box-shadow:
+    0 0 50px rgba(255, 111, 89, 0.8),
+    inset 0 0 40px rgba(255, 111, 89, 0.4);
+  animation: burstRing 0.9s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes burstRing {
+  0%   { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+
