@@ -23,9 +23,9 @@ export const initialRoles: Role[] = [
 
 export const initialUsers: User[] = [
   { id: '10000000-0000-0000-0000-000000000001', email: 'arbe@falcon.edu', full_name: "Ma'am Arbe", role_id: '00000000-0000-0000-0000-000000000001', status: 'active', created_at: '2025-01-01T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000002', email: 'staff1@falcon.edu', full_name: 'Custodian John', role_id: '00000000-0000-0000-0000-000000000002', status: 'active', created_at: '2025-01-02T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000004', email: 'm.reyes@falcon.edu', full_name: 'Coach Michael Reyes', role_id: '00000000-0000-0000-0000-000000000001', status: 'active', created_at: '2025-01-05T00:00:00Z' },
-  { id: '10000000-0000-0000-0000-000000000006', email: 'juan.delacruz@falcon.edu', full_name: 'Juan Dela Cruz', role_id: '00000000-0000-0000-0000-000000000003', status: 'active', created_at: '2025-01-10T00:00:00Z' },
+  { id: '10000000-0000-0000-0000-000000000002', email: 'samuel@falcon.edu', full_name: 'Samuel Angelo Udtohan', role_id: '00000000-0000-0000-0000-000000000002', status: 'active', created_at: '2025-01-02T00:00:00Z' },
+  { id: '10000000-0000-0000-0000-000000000004', email: 'ace@falcon.edu', full_name: 'Ace Arcamo', role_id: '00000000-0000-0000-0000-000000000001', status: 'active', created_at: '2025-01-05T00:00:00Z' },
+  { id: '10000000-0000-0000-0000-000000000006', email: 'riza.velasco@falcon.edu', full_name: 'Riza Velasco', role_id: '00000000-0000-0000-0000-000000000003', status: 'active', created_at: '2025-01-10T00:00:00Z' },
   { id: '10000000-0000-0000-0000-000000000007', email: 'mark.bautista@falcon.edu', full_name: 'Mark Bautista', role_id: '00000000-0000-0000-0000-000000000003', status: 'active', created_at: '2025-01-10T00:00:00Z' }
 ];
 
@@ -36,7 +36,7 @@ export const initialAthletes: Athlete[] = [
     student_number: '2024-00101',
     department: 'College of Computer Studies',
     year_level: 3,
-    emergency_contact: 'Maria Dela Cruz (Mother) - 0917-000-1122',
+    emergency_contact: 'Family Velasco - 0917-123-4567',
     created_at: '2025-01-10T00:00:00Z'
   },
   {

@@ -8,33 +8,43 @@ interface SidebarProps {
   setCurrentRole: (role: UserRole) => void;
   userDisplayName: string;
   username: string;
+  isOpen?: boolean;
+  onClose?: () => void;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   setCurrentTab,
   currentRole,
-  setCurrentRole,
-  userDisplayName,
-  username
+  setCurrentRole: _setCurrentRole,
+  userDisplayName: _userDisplayName,
+  username: _username,
+  isOpen = false,
+  onClose,
+  onLogout
 }) => {
-  const getInitials = (name: string) => {
-    if (name.includes('Arbe')) return 'A';
-    if (name.includes('John') || username === 'staff1') return 'S';
-    if (name.includes('Dela Cruz')) return 'JD';
-    return name.slice(0, 2).toUpperCase();
-  };
-
-  const handleProfileClick = () => {
-    // Quick role toggle for testing defense
-    if (currentRole === 'admin') setCurrentRole('staff');
-    else if (currentRole === 'staff') setCurrentRole('student');
-    else setCurrentRole('admin');
+  const handleNav = (tab: string) => {
+    setCurrentTab(tab);
+    if (onClose) {
+      onClose();
+    }
   };
 
   return (
-    <aside className="sidebar">
-      <div>
+    <aside className={`sidebar ${isOpen ? 'show' : ''}`}>
+      {/* Mobile close button */}
+      <button
+        type="button"
+        className="sidebar-close-btn d-lg-none"
+        onClick={onClose}
+        aria-label="Close navigation menu"
+      >
+        <i className="bi bi-x-lg"></i>
+      </button>
+
+      {/* SCROLLABLE NAVIGATION AREA */}
+      <div className="sidebar-scroll-area">
         {/* BRAND / LOGO ONLY (Exact match to screenshots) */}
         <div className="sidebar-brand">
           <div style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -47,7 +57,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="sidebar-section-title">Menu</div>
           <li>
             <button
-              onClick={() => setCurrentTab('dashboard')}
+              onClick={() => handleNav('dashboard')}
               className={currentTab === 'dashboard' ? 'active' : ''}
             >
               <i className="bi bi-grid-fill"></i>
@@ -61,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="sidebar-section-title">Management</div>
               <li>
                 <button
-                  onClick={() => setCurrentTab('equipment')}
+                  onClick={() => handleNav('equipment')}
                   className={currentTab === 'equipment' ? 'active' : ''}
                 >
                   <i className="bi bi-box-seam"></i>
@@ -70,16 +80,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('borrowing')}
+                  onClick={() => handleNav('borrowing')}
                   className={currentTab === 'borrowing' ? 'active' : ''}
                 >
                   <i className="bi bi-arrow-left-right"></i>
-                  <span>Borrowing (N:M)</span>
+                  <span>Borrowing</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('maintenance')}
+                  onClick={() => handleNav('maintenance')}
                   className={currentTab === 'maintenance' ? 'active' : ''}
                 >
                   <i className="bi bi-tools"></i>
@@ -88,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('athletes')}
+                  onClick={() => handleNav('athletes')}
                   className={currentTab === 'athletes' ? 'active' : ''}
                 >
                   <i className="bi bi-people"></i>
@@ -97,7 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('coaches')}
+                  onClick={() => handleNav('coaches')}
                   className={currentTab === 'coaches' ? 'active' : ''}
                 >
                   <i className="bi bi-person-badge"></i>
@@ -106,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('teams')}
+                  onClick={() => handleNav('teams')}
                   className={currentTab === 'teams' ? 'active' : ''}
                 >
                   <i className="bi bi-diagram-3"></i>
@@ -117,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="sidebar-section-title">Database & Records</div>
               <li>
                 <button
-                  onClick={() => setCurrentTab('users')}
+                  onClick={() => handleNav('users')}
                   className={currentTab === 'users' ? 'active' : ''}
                 >
                   <i className="bi bi-shield-lock"></i>
@@ -126,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('audit')}
+                  onClick={() => handleNav('audit')}
                   className={currentTab === 'audit' ? 'active' : ''}
                 >
                   <i className="bi bi-journal-text"></i>
@@ -135,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('defense')}
+                  onClick={() => handleNav('defense')}
                   className={currentTab === 'defense' ? 'active' : ''}
                 >
                   <i className="bi bi-file-earmark-bar-graph"></i>
@@ -151,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="sidebar-section-title">Equipment Desk</div>
               <li>
                 <button
-                  onClick={() => setCurrentTab('equipment')}
+                  onClick={() => handleNav('equipment')}
                   className={currentTab === 'equipment' ? 'active' : ''}
                 >
                   <i className="bi bi-box-seam"></i>
@@ -160,16 +170,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('checkout')}
+                  onClick={() => handleNav('checkout')}
                   className={currentTab === 'checkout' ? 'active' : ''}
                 >
                   <i className="bi bi-cart-plus"></i>
-                  <span>New Borrowing (SP)</span>
+                  <span>New Borrowing</span>
                 </button>
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('borrowing')}
+                  onClick={() => handleNav('borrowing')}
                   className={currentTab === 'borrowing' ? 'active' : ''}
                 >
                   <i className="bi bi-arrow-left-right"></i>
@@ -178,11 +188,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('maintenance')}
+                  onClick={() => handleNav('maintenance')}
                   className={currentTab === 'maintenance' ? 'active' : ''}
                 >
                   <i className="bi bi-tools"></i>
                   <span>Maintenance Queue</span>
+                </button>
+              </li>
+            </>
+          )}
+
+          {/* COACH PORTAL LINKS */}
+          {currentRole === 'coach' && (
+            <>
+              <div className="sidebar-section-title">Coaching & Squads</div>
+              <li>
+                <button
+                  onClick={() => handleNav('teams')}
+                  className={currentTab === 'teams' ? 'active' : ''}
+                >
+                  <i className="bi bi-diagram-3"></i>
+                  <span>My Teams & Rosters</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => handleNav('athletes')}
+                  className={currentTab === 'athletes' ? 'active' : ''}
+                >
+                  <i className="bi bi-people"></i>
+                  <span>Athletes Directory</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => handleNav('equipment')}
+                  className={currentTab === 'equipment' ? 'active' : ''}
+                >
+                  <i className="bi bi-box-seam"></i>
+                  <span>Team Equipment</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => handleNav('borrowing')}
+                  className={currentTab === 'borrowing' ? 'active' : ''}
+                >
+                  <i className="bi bi-arrow-left-right"></i>
+                  <span>Gear Checkouts</span>
                 </button>
               </li>
             </>
@@ -194,7 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="sidebar-section-title">Student Athlete</div>
               <li>
                 <button
-                  onClick={() => setCurrentTab('equipment')}
+                  onClick={() => handleNav('equipment')}
                   className={currentTab === 'equipment' ? 'active' : ''}
                 >
                   <i className="bi bi-box-seam"></i>
@@ -203,7 +256,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('request_loan')}
+                  onClick={() => handleNav('request_loan')}
                   className={currentTab === 'request_loan' ? 'active' : ''}
                 >
                   <i className="bi bi-hand-index-thumb"></i>
@@ -212,7 +265,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('borrowing')}
+                  onClick={() => handleNav('borrowing')}
                   className={currentTab === 'borrowing' ? 'active' : ''}
                 >
                   <i className="bi bi-clock-history"></i>
@@ -221,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => setCurrentTab('report_damage')}
+                  onClick={() => handleNav('report_damage')}
                   className={currentTab === 'report_damage' ? 'active' : ''}
                 >
                   <i className="bi bi-exclamation-octagon"></i>
@@ -230,34 +283,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
             </>
           )}
-        </ul>
-      </div>
 
-      {/* BOTTOM USER PROFILE CARD (Coral Card matching Screenshot 2, 3, 4) */}
-      <div>
-        <button
-          type="button"
-          className="sidebar-profile-card"
-          onClick={handleProfileClick}
-          title="Click to toggle perspective (Admin ↔ Staff ↔ Student)"
-        >
-          <div className="d-flex align-items-center gap-2 overflow-hidden">
-            <div className="profile-avatar">
-              {getInitials(userDisplayName)}
-            </div>
-            <div className="overflow-hidden text-start">
-              <div className="text-truncate fw-bold" style={{ fontSize: '0.88rem', color: '#ffffff' }}>
-                {userDisplayName}
-              </div>
-              <div className="text-truncate" style={{ fontSize: '0.72rem', color: 'rgba(255, 255, 255, 0.85)', textTransform: 'capitalize' }}>
-                {currentRole}
-              </div>
-            </div>
-          </div>
-          <div>
-            <i className="bi bi-chevron-down" style={{ fontSize: '0.75rem', color: '#ffffff' }}></i>
-          </div>
-        </button>
+          {/* SESSION / LOG OUT MENU ITEM */}
+          {onLogout && (
+            <>
+              <div className="sidebar-section-title">Session</div>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onClose) onClose();
+                    onLogout();
+                  }}
+                  className="sidebar-nav-logout-btn"
+                  title="Sign out of portal"
+                >
+                  <i className="bi bi-box-arrow-right"></i>
+                  <span>Log Out</span>
+                </button>
+              </li>
+            </>
+          )}
+        </ul>
       </div>
     </aside>
   );

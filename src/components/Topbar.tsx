@@ -1,63 +1,93 @@
 import React from 'react';
+import { UserRole } from '../types/database';
 
 interface TopbarProps {
-  onLogout: () => void;
-  onOpenConfig: () => void;
-  isLive: boolean;
+  onOpenConfig?: () => void;
+  isLive?: boolean;
   searchTerm: string;
   setSearchTerm: (s: string) => void;
+  userDisplayName: string;
+  currentRole: UserRole;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
-  onLogout,
   onOpenConfig,
-  isLive,
   searchTerm,
-  setSearchTerm
+  setSearchTerm,
+  userDisplayName,
+  currentRole
 }) => {
   return (
     <header className="topbar">
-      {/* SEARCH BAR (Matching screenshot exactly) */}
-      <div className="topbar-search-wrap">
-        <input
-          type="text"
-          className="topbar-search-input"
-          placeholder="Search equipment, transactions, athletes..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <i className="bi bi-search topbar-search-icon"></i>
+      <div className="d-flex align-items-center flex-grow-1 me-2" style={{ maxWidth: '420px' }}>
+        {/* SEARCH BAR */}
+        <div className="topbar-search-wrap flex-grow-1">
+          <input
+            type="text"
+            className="topbar-search-input"
+            placeholder="Search equipment, athletes..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <i className="bi bi-search topbar-search-icon"></i>
+        </div>
       </div>
 
-      {/* RIGHT ACTIONS */}
+      {/* RIGHT ACTIONS: LOGGED IN USER PROFILE */}
       <div className="topbar-actions">
-        {/* Supabase status button */}
-        <button
+        {/* Logged in User Display (Desktop) */}
+        <div
           onClick={onOpenConfig}
-          className="btn btn-sm rounded-pill d-none d-md-inline-flex align-items-center gap-1"
+          className="d-none d-md-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
           style={{
-            background: isLive ? '#DCFCE7' : '#FEF3C7',
-            color: isLive ? '#15803D' : '#B45309',
-            border: `1px solid ${isLive ? '#BBF7D0' : '#FDE68A'}`,
-            fontSize: '0.78rem',
-            fontWeight: 700,
-            padding: '0.45rem 0.95rem'
+            background: '#FFFFFF',
+            border: '1.5px solid #E2E8F0',
+            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
+            fontSize: '0.85rem',
+            cursor: onOpenConfig ? 'pointer' : 'default',
+            transition: 'all 0.15s ease'
           }}
-          title="Supabase PostgreSQL Settings"
+          title="Logged In User"
         >
-          <i className="bi bi-database"></i>
-          <span>{isLive ? 'Supabase: Live Cloud' : 'Supabase: Standby (Mock)'}</span>
-        </button>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: '#10B981',
+              display: 'inline-block'
+            }}
+          ></span>
+          <span style={{ fontWeight: 800, color: 'var(--sidebar-bg)' }}>{userDisplayName}</span>
+          <span
+            className="badge rounded-pill text-capitalize"
+            style={{
+              background: '#F1F5F9',
+              color: '#64748B',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              padding: '0.25rem 0.55rem'
+            }}
+          >
+            {currentRole}
+          </span>
+        </div>
 
-        {/* LOGOUT BUTTON (Exact match to screenshot) */}
-        <button
-          type="button"
-          onClick={onLogout}
-          className="topbar-logout-btn"
-          title="Sign out of portal"
+        {/* Logged in User Avatar (Mobile) */}
+        <div
+          onClick={onOpenConfig}
+          className="d-inline-flex d-md-none align-items-center justify-content-center fw-bold text-white rounded-circle shadow-sm"
+          style={{
+            width: '38px',
+            height: '38px',
+            background: 'var(--coral-gradient)',
+            fontSize: '0.85rem',
+            cursor: onOpenConfig ? 'pointer' : 'default'
+          }}
+          title={`${userDisplayName} (${currentRole})`}
         >
-          <i className="bi bi-box-arrow-right"></i> Log Out
-        </button>
+          {userDisplayName.charAt(0)}
+        </div>
       </div>
     </header>
   );

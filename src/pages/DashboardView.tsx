@@ -193,7 +193,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <thead>
                       <tr>
                         <th>Borrower</th>
-                        <th>Equipment Items (N:M)</th>
+                        <th>Equipment Items</th>
                         <th>Return Due</th>
                         <th>Status</th>
                       </tr>
@@ -203,10 +203,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <td>
                           <div className="d-flex align-items-center gap-3">
                             <div className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white shadow-sm" style={{ width: '38px', height: '38px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', fontSize: '0.82rem', flexShrink: 0 }}>
-                              JD
+                              RV
                             </div>
                             <div>
-                              <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Juan Dela Cruz</div>
+                              <div className="fw-bold text-dark" style={{ fontSize: '0.88rem' }}>Riza Velasco</div>
                               <small className="text-muted" style={{ fontSize: '0.75rem' }}>2024-00101</small>
                             </div>
                           </div>
@@ -338,7 +338,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <div className="d-flex justify-content-between align-items-center">
                     <div className="d-flex align-items-center gap-2">
                       <span className="rounded-circle" style={{ width: '8px', height: '8px', background: '#F59E0B' }}></span>
-                      <span className="fw-semibold small text-dark">Juan Dela Cruz</span>
+                      <span className="fw-semibold small text-dark">Riza Velasco</span>
                     </div>
                     <span className="pill-soft pill-amber" style={{ fontSize: '0.7rem' }}>Sep 29</span>
                   </div>
@@ -427,7 +427,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <tr>
                         <td><span className="badge bg-light text-secondary border">#13</span></td>
                         <td>
-                          <div className="fw-bold text-dark">Juan Dela Cruz</div>
+                          <div className="fw-bold text-dark">Riza Velasco</div>
                           <small className="text-muted">2024-00101</small>
                         </td>
                         <td>
@@ -453,7 +453,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <tr>
                         <td><span className="badge bg-light text-secondary border">#12</span></td>
                         <td>
-                          <div className="fw-bold text-dark">Juan Dela Cruz</div>
+                          <div className="fw-bold text-dark">Riza Velasco</div>
                           <small className="text-muted">2024-00101</small>
                         </td>
                         <td>
@@ -494,7 +494,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     className="btn btn-light w-100 rounded-pill fw-bold py-2 shadow-sm d-flex align-items-center justify-content-center gap-2"
                     style={{ color: 'var(--coral)' }}
                   >
-                    <i className="bi bi-cart-plus-fill"></i> Issue New Loan (SP)
+                    <i className="bi bi-cart-plus-fill"></i> Issue New Loan
                   </button>
                   <button
                     onClick={() => onNavigate('borrowing')}
@@ -667,10 +667,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF', boxShadow: 'var(--coral-shadow)' }}>
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div className="profile-avatar" style={{ width: '48px', height: '48px', fontSize: '1.1rem' }}>
-                    JD
+                    RV
                   </div>
                   <div>
-                    <h5 className="fw-bold mb-0 text-white">Juan Dela Cruz</h5>
+                    <h5 className="fw-bold mb-0 text-white">Riza Velasco</h5>
                     <small style={{ color: 'rgba(255,255,255,0.85)' }}>2024-00101</small>
                   </div>
                 </div>

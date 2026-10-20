@@ -91,10 +91,11 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                  <span>🟢 Live Supabase Cloud</span>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+                  <span>Live Supabase Cloud</span>
                 </div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Queries real PostgreSQL tables, views, and executes PL/pgSQL RPC transactions.
+                  Queries PostgreSQL tables, views, and executes PL/pgSQL RPC transactions.
                 </p>
               </div>
 
@@ -109,7 +110,8 @@ export const SupabaseModal: React.FC<SupabaseModalProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem' }}>
-                  <span>🟡 Standby Mock DB</span>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block' }}></span>
+                  <span>Standby Mock DB</span>
                 </div>
                 <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                   Zero-config fallback for offline demo or defense stress test without cloud lag.

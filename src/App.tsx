@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
+import { BottomNav } from './components/BottomNav';
 import { SupabaseModal } from './components/SupabaseModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { ReturnModal } from './components/ReturnModal';
@@ -11,6 +12,7 @@ import { TeamsView } from './pages/TeamsView';
 import { EquipmentView } from './pages/EquipmentView';
 import { BorrowingView } from './pages/BorrowingView';
 import { AthletesView } from './pages/AthletesView';
+import { MaintenanceView } from './pages/MaintenanceView';
 import { AuditLogsView } from './pages/AuditLogsView';
 import { DefenseHubView } from './pages/DefenseHubView';
 
@@ -38,6 +40,7 @@ export const App: React.FC = () => {
   // Navigation
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
 
   // Database Data States
   const [sports, setSports] = useState<Sport[]>([]);
@@ -117,22 +120,25 @@ export const App: React.FC = () => {
       setUserDisplayName("Ma'am Arbe");
       setUsername('arbe');
     } else if (newRole === 'staff') {
-      setUserDisplayName('Custodian John');
-      setUsername('staff1');
+      setUserDisplayName('Samuel Angelo Udtohan');
+      setUsername('samuel');
+    } else if (newRole === 'coach') {
+      setUserDisplayName('Ace Arcamo');
+      setUsername('ace');
     } else {
-      setUserDisplayName('Juan Dela Cruz');
-      setUsername('student');
+      setUserDisplayName('Riza Velasco');
+      setUsername('riza');
     }
   };
 
-  // If not logged in, render Screenshot 1 Portal Access Login View!
+  // If not logged in, render Portal Access Login View
   if (!isLoggedIn) {
     return <LoginView onLogin={handleLogin} loggedOutNotice={justLoggedOut} />;
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-body)' }}>
-      {/* SIDEBAR (Screenshots 2, 3, 4) */}
+      {/* SIDEBAR (With role profile & Log Out button) */}
       <Sidebar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
@@ -140,17 +146,30 @@ export const App: React.FC = () => {
         setCurrentRole={handleRoleChange}
         userDisplayName={userDisplayName}
         username={username}
+        isOpen={isMobileNavOpen}
+        onClose={() => setIsMobileNavOpen(false)}
+        onLogout={handleLogout}
       />
+
+      {/* MOBILE BACKDROP */}
+      {isMobileNavOpen && (
+        <div
+          className="sidebar-backdrop d-lg-none"
+          onClick={() => setIsMobileNavOpen(false)}
+          aria-label="Close navigation overlay"
+        />
+      )}
 
       {/* MAIN WRAPPER */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* TOPBAR (Search bar and Log Out button) */}
+        {/* TOPBAR (Clean search & Supabase status) */}
         <Topbar
-          onLogout={handleLogout}
           onOpenConfig={() => setIsConfigOpen(true)}
           isLive={isLiveMode}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
+          userDisplayName={userDisplayName}
+          currentRole={currentRole}
         />
 
         {/* MAIN BODY CONTENT */}
@@ -205,9 +224,8 @@ export const App: React.FC = () => {
           )}
 
           {currentTab === 'maintenance' && (
-            <EquipmentView
+            <MaintenanceView
               equipmentList={equipmentList}
-              sports={sports}
               currentRole={currentRole}
               onRefresh={loadAllData}
             />
@@ -221,6 +239,14 @@ export const App: React.FC = () => {
             <DefenseHubView />
           )}
         </main>
+
+        {/* MOBILE BOTTOM NAVIGATION */}
+        <BottomNav
+          currentTab={currentTab}
+          setCurrentTab={setCurrentTab}
+          onToggleMobileNav={() => setIsMobileNavOpen(prev => !prev)}
+          currentRole={currentRole}
+        />
       </div>
 
       {/* Supabase Cloud Connection & Configuration Modal */}

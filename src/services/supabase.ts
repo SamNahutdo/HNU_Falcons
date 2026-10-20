@@ -23,7 +23,7 @@ const STORAGE_MODE_KEY = 'fare_supabase_mode'; // 'live' | 'mock'
 export function getSupabaseCredentials(): { url: string; anonKey: string; isLiveConfigured: boolean; mode: 'live' | 'mock' } {
   const localUrl = localStorage.getItem(STORAGE_URL_KEY);
   const localKey = localStorage.getItem(STORAGE_ANON_KEY);
-  const localMode = (localStorage.getItem(STORAGE_MODE_KEY) as 'live' | 'mock') || 'mock';
+  const localMode = localStorage.getItem(STORAGE_MODE_KEY) as 'live' | 'mock' | null;
 
   const envUrl = import.meta.env.VITE_SUPABASE_URL || '';
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -32,11 +32,13 @@ export function getSupabaseCredentials(): { url: string; anonKey: string; isLive
   const anonKey = localKey || envKey;
   const isLiveConfigured = Boolean(url && anonKey && url.startsWith('http'));
 
+  const effectiveMode = isLiveConfigured ? (localMode === 'mock' ? 'mock' : 'live') : 'mock';
+
   return {
     url,
     anonKey,
     isLiveConfigured,
-    mode: isLiveConfigured && localMode === 'live' ? 'live' : 'mock'
+    mode: effectiveMode
   };
 }
 

@@ -3,10 +3,11 @@ import {
   Trophy,
   Users,
   Plus,
-  UserCheck,
   Calendar,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Shield,
+  Award
 } from 'lucide-react';
 import { Sport, Team, TeamMember, Athlete, UserRole } from '../types/database';
 import { databaseService } from '../services/supabase';
@@ -52,7 +53,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         Number(assignJersey)
       );
       setIsAssignOpen(false);
-      setNotification({ type: 'success', message: 'Athlete successfully rostered to team (Junction record created)!' });
+      setNotification({ type: 'success', message: 'Athlete successfully rostered to team!' });
       onRefresh();
     } catch (err: unknown) {
       setNotification({
@@ -63,62 +64,85 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
   };
 
   return (
-    <div className="content-container">
+    <div style={{ maxWidth: '1440px', margin: '0 auto' }}>
+      {/* Notifications */}
       {notification && (
         <div style={{
-          padding: '0.85rem 1.25rem',
-          borderRadius: 'var(--radius-md)',
-          background: notification.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.15)',
-          border: `1px solid ${notification.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-          color: notification.type === 'success' ? '#34d399' : '#f87171',
+          padding: '0.9rem 1.25rem',
+          borderRadius: '14px',
+          background: notification.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+          border: `1.5px solid ${notification.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
+          color: notification.type === 'success' ? '#065F46' : '#991B1B',
           marginBottom: '1.5rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          fontSize: '0.875rem'
+          fontSize: '0.88rem',
+          fontWeight: 600
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            {notification.type === 'success' ? <CheckCircle2 size={18} color="#10B981" /> : <AlertCircle size={18} color="#EF4444" />}
             <span>{notification.message}</span>
           </div>
-          <button onClick={() => setNotification(null)} className="btn btn-secondary btn-icon" style={{ width: '28px', height: '28px' }}>
+          <button
+            onClick={() => setNotification(null)}
+            style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'inherit' }}
+          >
             &times;
           </button>
         </div>
       )}
 
       {/* Sports Catalog Summary Bar */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="card-header">
-          <div>
-            <h3 className="card-title">
-              <Trophy size={18} color="#f59e0b" />
-              University Sports Disciplines Master (sports table)
-            </h3>
-            <p className="card-subtitle">Foundational 3NF entity referenced by teams and equipment tables</p>
-          </div>
-          <span className="badge badge-neutral">{sports.length} Recognized Codes</span>
+      <div className="card-modern" style={{ marginBottom: '1.75rem', padding: '1.5rem' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1.25rem',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <h3 style={{
+            margin: 0,
+            fontSize: '1.2rem',
+            fontWeight: 800,
+            color: 'var(--sidebar-bg)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Trophy size={20} color="var(--coral)" />
+            Sports
+          </h3>
+          <span className="pill-soft pill-coral">
+            {sports.length} sports
+          </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
           {sports.map((sport) => {
             const countTeams = teams.filter(t => t.sport_id === sport.id).length;
             return (
               <div
                 key={sport.id}
                 style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem',
-                  border: '1px solid var(--border-light)'
+                  background: '#F8FAFC',
+                  borderRadius: '14px',
+                  padding: '1rem 1.15rem',
+                  border: '1px solid #E2E8F0',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{sport.name}</span>
-                  <span className="badge badge-info" style={{ fontSize: '0.68rem' }}>{sport.category}</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#1E293B' }}>{sport.name}</span>
+                  <span className="pill-soft pill-blue" style={{ fontSize: '0.68rem', padding: '0.2rem 0.6rem' }}>
+                    {sport.category}
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                  {countTeams} active varsity squad{countTeams !== 1 ? 's' : ''}
+                <div style={{ fontSize: '0.78rem', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <Shield size={13} color="#94A3B8" />
+                  <span>{countTeams} active varsity squad{countTeams !== 1 ? 's' : ''}</span>
                 </div>
               </div>
             );
@@ -126,38 +150,58 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         </div>
       </div>
 
-      {/* Teams Roster Manager (Junction 1) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', alignItems: 'flex-start' }}>
+      {/* Teams Roster Manager Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: '1.5rem',
+        alignItems: 'flex-start'
+      }}>
         {/* Teams List Column */}
-        <div className="card">
-          <div className="card-header" style={{ marginBottom: '0.85rem' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Varsity Teams ({teams.length})</h4>
+        <div className="card-modern" style={{ padding: '1.5rem' }}>
+          <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--sidebar-bg)' }}>
+              Varsity Teams ({teams.length})
+            </h4>
+            <span className="pill-soft pill-blue">Select to inspect</span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
             {teams.map((t) => {
               const isSelected = t.id === selectedTeam?.id;
               const sport = sports.find(s => s.id === t.sport_id);
               const countAthletes = teamMembers.filter(tm => tm.team_id === t.id).length;
+
               return (
                 <div
                   key={t.id}
                   onClick={() => setSelectedTeamId(t.id)}
                   style={{
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-light)'}`,
-                    background: isSelected ? 'rgba(37, 99, 235, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                    padding: '0.95rem 1.15rem',
+                    borderRadius: '14px',
+                    border: `1.5px solid ${isSelected ? 'var(--coral)' : '#E2E8F0'}`,
+                    background: isSelected ? '#FFF5F3' : '#FFFFFF',
                     cursor: 'pointer',
-                    transition: 'all var(--transition-fast)'
+                    transition: 'all 0.2s ease',
+                    boxShadow: isSelected ? '0 4px 12px rgba(255, 111, 89, 0.15)' : 'none'
                   }}
                 >
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: isSelected ? '#93c5fd' : 'var(--text-main)' }}>
-                    {t.team_name}
+                  <div style={{
+                    fontWeight: 800,
+                    fontSize: '0.95rem',
+                    color: isSelected ? 'var(--coral)' : '#1E293B',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <span>{t.team_name}</span>
+                    <span className="pill-soft pill-coral" style={{ fontSize: '0.68rem', padding: '0.2rem 0.6rem' }}>
+                      {countAthletes} Athletes
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.45rem', fontSize: '0.78rem', color: '#64748B' }}>
                     <span>{sport?.name} &bull; SY {t.school_year}</span>
-                    <span className="badge badge-neutral" style={{ fontSize: '0.65rem' }}>{countAthletes} Athletes</span>
+                    <span style={{ fontWeight: 600 }}>Coach {t.coach?.user?.full_name?.split(' ')[0] || 'Arcamo'}</span>
                   </div>
                 </div>
               );
@@ -165,49 +209,83 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
           </div>
         </div>
 
-        {/* Selected Team Roster (Junction 1: team_members) */}
+        {/* Selected Team Active Roster */}
         {selectedTeam && (
-          <div className="card">
-            <div className="card-header">
-              <div>
-                <h3 className="card-title">
-                  <Users size={18} color="#3b82f6" />
-                  {selectedTeam.team_name} — Active Roster
-                </h3>
-                <p className="card-subtitle">
-                  Many-to-Many Junction Table <code style={{ color: '#93c5fd' }}>team_members</code> carrying intersection attributes (position, jersey)
-                </p>
-              </div>
+          <div className="card-modern" style={{ padding: '1.75rem', gridColumn: 'span 2' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1.5rem',
+              flexWrap: 'wrap',
+              gap: '1rem'
+            }}>
+          <h3 style={{
+            margin: 0,
+            fontSize: '1.2rem',
+            fontWeight: 800,
+            color: 'var(--sidebar-bg)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Users size={20} color="var(--coral)" />
+            {selectedTeam.team_name} Roster
+          </h3>
 
-              {currentRole !== 'student' && (
-                <button
-                  onClick={() => setIsAssignOpen(true)}
-                  className="btn btn-primary btn-sm"
-                >
-                  <Plus size={14} /> Assign Athlete to Roster
-                </button>
-              )}
+          {currentRole !== 'student' && (
+            <button
+              onClick={() => setIsAssignOpen(true)}
+              style={{
+                background: 'var(--coral-gradient)',
+                border: 'none',
+                borderRadius: '9999px',
+                padding: '0.6rem 1.35rem',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.86rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+                boxShadow: 'var(--coral-shadow)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Plus size={15} /> Assign Athlete
+            </button>
+          )}
             </div>
 
-            {/* Coach banner */}
+            {/* Coach Banner */}
             <div style={{
-              background: 'rgba(255, 255, 255, 0.02)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.85rem 1rem',
-              border: '1px solid var(--border-subtle)',
-              marginBottom: '1.25rem',
+              background: '#F8FAFC',
+              borderRadius: '16px',
+              padding: '1rem 1.25rem',
+              border: '1px solid #E2E8F0',
+              marginBottom: '1.5rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.85rem'
+              gap: '1rem'
             }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <UserCheck size={18} color="#60a5fa" />
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'var(--coral-gradient)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 10px rgba(255, 111, 89, 0.3)'
+              }}>
+                <Award size={20} />
               </div>
               <div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Head Coach:</div>
-                <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>
-                  {selectedTeam.coach?.user?.full_name || 'Kenneth Carter'}
-                  <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+                <div style={{ fontSize: '0.75rem', color: '#64748B', fontWeight: 700, textTransform: 'uppercase' }}>Designated Head Coach</div>
+                <div style={{ fontWeight: 800, fontSize: '0.96rem', color: '#1E293B' }}>
+                  {selectedTeam.coach?.user?.full_name || 'Coach Ace Arcamo'}
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748B', marginLeft: '0.65rem' }}>
                     ({selectedTeam.coach?.license_level || 'FIBA Level 3'})
                   </span>
                 </div>
@@ -215,8 +293,8 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
             </div>
 
             {/* Roster Table */}
-            <div className="table-responsive">
-              <table className="data-table">
+            <div style={{ overflowX: 'auto' }}>
+              <table className="table-modern">
                 <thead>
                   <tr>
                     <th>Jersey #</th>
@@ -230,8 +308,9 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                 <tbody>
                   {currentMembers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                        No athletes currently assigned to this team roster.
+                      <td colSpan={6} style={{ textAlign: 'center', color: '#94A3B8', padding: '3rem 1rem' }}>
+                        <Users size={36} style={{ opacity: 0.35, marginBottom: '0.5rem' }} />
+                        <div style={{ fontWeight: 600 }}>No athletes currently assigned to this team roster</div>
                       </td>
                     </tr>
                   ) : (
@@ -239,40 +318,43 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                       <tr key={tm.id}>
                         <td>
                           <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: 'var(--radius-md)',
-                            background: 'rgba(37, 99, 235, 0.15)',
-                            border: '1px solid rgba(37, 99, 235, 0.3)',
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '10px',
+                            background: '#FFF5F3',
+                            border: '1.5px solid var(--coral)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontWeight: 800,
                             fontFamily: 'var(--font-mono)',
-                            color: '#60a5fa'
+                            color: 'var(--coral)',
+                            fontSize: '0.9rem'
                           }}>
                             {tm.jersey_number ?? '-'}
                           </div>
                         </td>
                         <td>
-                          <div style={{ fontWeight: 700 }}>{tm.athlete?.user?.full_name}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{tm.athlete?.emergency_contact}</div>
+                          <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '0.92rem' }}>{tm.athlete?.user?.full_name}</div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{tm.athlete?.emergency_contact}</div>
                         </td>
                         <td>
-                          <div style={{ fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>{tm.athlete?.student_number}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{tm.athlete?.department}</div>
+                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#1E293B' }}>
+                            {tm.athlete?.student_number}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#64748B' }}>{tm.athlete?.department}</div>
                         </td>
                         <td>
-                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{tm.position}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.86rem', color: '#334155' }}>{tm.position}</span>
                         </td>
                         <td>
-                          <div style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Calendar size={13} color="var(--text-muted)" />
+                          <div style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748B' }}>
+                            <Calendar size={13} color="var(--coral)" />
                             <span>{tm.joined_at}</span>
                           </div>
                         </td>
                         <td>
-                          <span className={`badge ${tm.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
+                          <span className={`pill-soft ${tm.status === 'active' ? 'pill-green' : 'pill-amber'}`}>
                             {tm.status}
                           </span>
                         </td>
@@ -286,29 +368,58 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
         )}
       </div>
 
-      {/* ASSIGN ATHLETE MODAL (Junction 1 inserter) */}
+      {/* ASSIGN ATHLETE MODAL */}
       {isAssignOpen && selectedTeam && (
-        <div className="modal-backdrop" onClick={() => setIsAssignOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }} onClick={() => setIsAssignOpen(false)}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '24px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            border: '1px solid #E2E8F0',
+            overflow: 'hidden'
+          }} onClick={(e) => e.stopPropagation()}>
             <form onSubmit={handleAssignSubmit}>
-              <div className="modal-header">
+              <div style={{
+                padding: '1.25rem 1.75rem',
+                borderBottom: '1px solid #F1F5F9',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#FAFBFD'
+              }}>
                 <div>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>Assign Athlete to {selectedTeam.team_name}</h3>
-                  <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Inserts record into N:M junction table <code style={{ color: '#93c5fd' }}>team_members</code></p>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--sidebar-bg)' }}>
+                    Assign Athlete to {selectedTeam.team_name}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#64748B' }}>
+                    Creates record in team_members junction table
+                  </p>
                 </div>
-                <button type="button" onClick={() => setIsAssignOpen(false)} className="btn btn-secondary btn-icon" style={{ width: '30px', height: '30px' }}>
+                <button type="button" onClick={() => setIsAssignOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#94A3B8' }}>
                   &times;
                 </button>
               </div>
 
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Select Varsity Athlete</label>
+              <div style={{ padding: '1.5rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label className="form-label-custom">Select Varsity Athlete</label>
                   <select
-                    className="form-control"
                     value={assignAthleteId}
                     onChange={(e) => setAssignAthleteId(e.target.value)}
                     required
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '12px', border: '1.5px solid #CBD5E1' }}
                   >
                     {athletes.map(a => (
                       <option key={a.id} value={a.id}>
@@ -318,37 +429,68 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Position / Tactical Role</label>
+                <div>
+                  <label className="form-label-custom">Tactical Position / Field Role</label>
                   <input
                     type="text"
-                    className="form-control"
-                    placeholder="e.g., Center / Wing Spiker / Sprinter"
+                    placeholder="e.g., Center / Point Guard / Wing Spiker"
                     value={assignPosition}
                     onChange={(e) => setAssignPosition(e.target.value)}
                     required
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '12px', border: '1.5px solid #CBD5E1' }}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Jersey Number (0-99)</label>
+                <div>
+                  <label className="form-label-custom">Jersey Number (0-99)</label>
                   <input
                     type="number"
-                    className="form-control"
                     min={0}
                     max={99}
                     value={assignJersey}
                     onChange={(e) => setAssignJersey(parseInt(e.target.value) || 0)}
                     required
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '12px', border: '1.5px solid #CBD5E1' }}
                   />
                 </div>
               </div>
 
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsAssignOpen(false)}>
+              <div style={{
+                padding: '1.15rem 1.75rem',
+                borderTop: '1px solid #F1F5F9',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                background: '#FAFBFD'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setIsAssignOpen(false)}
+                  style={{
+                    padding: '0.6rem 1.25rem',
+                    borderRadius: '9999px',
+                    border: '1px solid #CBD5E1',
+                    background: '#FFFFFF',
+                    color: '#64748B',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  style={{
+                    padding: '0.6rem 1.45rem',
+                    borderRadius: '9999px',
+                    border: 'none',
+                    background: 'var(--coral-gradient)',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    boxShadow: 'var(--coral-shadow)',
+                    cursor: 'pointer'
+                  }}
+                >
                   Confirm Roster Assignment
                 </button>
               </div>
