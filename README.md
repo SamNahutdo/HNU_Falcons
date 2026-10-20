@@ -7,19 +7,18 @@
   *Advanced Database Systems & Enterprise Resource Allocation Portal*
 
   <p align="center">
-    <img src="https://img.shields.io/badge/Laravel-11.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 11" />
-    <img src="https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php&logoColor=white" alt="PHP 8.2" />
-    <img src="https://img.shields.io/badge/MySQL-MariaDB_3308-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL" />
-    <img src="https://img.shields.io/badge/Bootstrap-5.3-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white" alt="Bootstrap 5" />
-    <img src="https://img.shields.io/badge/Status-Completed_%26_Verified-success?style=for-the-badge" alt="Status" />
+    <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19" />
+    <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 6" />
+    <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase PostgreSQL" />
   </p>
 
   <p align="center">
-    <a href="#-interactive-portal-previews">View Portals</a> •
+    <a href="#-interactive-workspaces">Workspaces</a> •
     <a href="#-system-architecture--how-it-works">How It Works</a> •
-    <a href="#-database-engineering-features">Database Features</a> •
+    <a href="#-borrowing-records">Borrowing Records</a> •
     <a href="#-quick-start-guide">Quick Start</a> •
-    <a href="#-development-team">The Team</a>
+    <a href="#-project-structure">Project Structure</a>
   </p>
 
 </div>
@@ -27,7 +26,7 @@
 ---
 
 > [!NOTE]
-> **Academic Project Notice**: Built for Advanced Database Management Systems (**IM101a**). Engineered with normalized relational tables, automated stored procedures, triggers, audit logging, and analytical views.
+> **Academic Project Notice**: FalconSystem is an athletic equipment and resource management application built with React, TypeScript, Vite, and Supabase. The repository includes a PostgreSQL schema with database views, functions, and triggers.
 
 ---
 
@@ -37,19 +36,19 @@
 <tr>
 <td width="60%">
 
-**FalconSystem** is a centralized athletic inventory, team roster, and equipment management platform custom-built for **Falcons Athletics**.
+**FalconSystem** is a web application for managing athletic equipment, borrowing transactions, athletes, and teams for **Falcons Athletics**.
 
-It eliminates manual equipment logging, prevents inventory loss, streamlines equipment requisitions across varsity teams, and guarantees database integrity through ACID-compliant transactional logic.
+Staff can manage inventory and equipment checkouts and returns. Coaches and student athletes have role-specific workspaces for team resources and equipment-related activities. The application can use Supabase for database access and includes mock data for local exploration.
 
 </td>
 <td>
 
 ### 🚀 Highlights at a Glance
-- 🛡️ **Role-Based Access Control (RBAC)** (4 Distinct Tiers)
-- ⚡ **Atomic Stored Procedures** (`sp_process_borrowing`, `sp_process_return`)
-- 📝 **Trigger-Driven Audit Trails** (`audit_logs`)
-- 📈 **Pre-computed SQL Views** (Overdue loans & stock levels)
-- 🧪 **Automated Defense Test Suite** (16/16 Checks Passing)
+- 👥 **Role-Specific Workspaces** (Administrator, Staff, Coach, Student)
+- 📦 **Equipment Inventory** and condition tracking
+- 🔄 **Borrowing Records** with active, overdue, partial-return, and returned statuses
+- 🧾 **Expandable Loan Details** with per-item quantities and conditions
+- ☁️ **Supabase PostgreSQL** integration and local mock-data mode
 
 </td>
 </tr>
@@ -61,205 +60,137 @@ It eliminates manual equipment logging, prevents inventory loss, streamlines equ
 
 ```mermaid
 flowchart TD
-    subgraph Users ["👥 User Access Tiers"]
-        A["👑 Administrator<br/>(Ma'am Arbe)"]
-        B["📦 Staff / Custodian<br/>(Equipment Desk)"]
-        C["🏅 Varsity Coach<br/>(Teams & Rosters)"]
-        D["🎓 Student Athlete<br/>(Equipment Loans)"]
+    subgraph Users ["👥 User Roles"]
+        A["👑 Administrator"]
+        B["📦 Staff / Custodian"]
+        C["🏅 Coach"]
+        D["🎓 Student Athlete"]
     end
 
-    subgraph Portal ["🌐 Application Layer (Laravel 11)"]
-        Auth["🔑 AuthController<br/>(RBAC Middleware)"]
-        AdminCtrl["Admin Controller"]
-        StaffCtrl["Custodian Controller"]
-        CoachCtrl["Coach Controller"]
-        StudentCtrl["Student Controller"]
+    subgraph App ["🌐 React Application"]
+        Login["LoginView"]
+        Shell["App.tsx<br/>Role-specific workspace"]
+        Borrowing["BorrowingView<br/>Loan records & filters"]
+        Checkout["CheckoutModal"]
+        Return["ReturnModal"]
+        Service["databaseService"]
+        Mock["mockDb<br/>Local sample data"]
     end
 
-    subgraph DB ["🗄️ Database Engine (MySQL / MariaDB)"]
-        SP["⚙️ Stored Procedures<br/>sp_process_borrowing<br/>sp_process_return"]
-        TRG["⚡ Database Triggers<br/>Audit & Stock Sync"]
-        VIEWS["📊 Analytical Views<br/>vw_current_borrowings<br/>vw_equipment_inventory"]
-        TABLES[("📁 Core Normalized Tables<br/>users | athletes | coaches<br/>teams | equipment | borrowing")]
+    subgraph Data ["🗄️ Data Layer"]
+        Supabase["Supabase PostgreSQL"]
+        Schema["supabase/schema.sql"]
     end
 
-    A -->|/admin/*| Auth --> AdminCtrl --> DB
-    B -->|/staff/*| Auth --> StaffCtrl --> DB
-    C -->|/coach/*| Auth --> CoachCtrl --> DB
-    D -->|/student/*| Auth --> StudentCtrl --> DB
-    DB --> SP --> TABLES
-    TABLES --> TRG --> DB
-    TABLES --> VIEWS
+    A --> Login
+    B --> Login
+    C --> Login
+    D --> Login
+    Login --> Shell
+    Shell --> Borrowing
+    Borrowing --> Checkout
+    Borrowing --> Return
+    Checkout --> Service
+    Return --> Service
+    Service --> Supabase
+    Service --> Mock
+    Schema -. defines .-> Supabase
 ```
 
 ---
 
-## 👥 Role Clearance Breakdown
+## 👥 Interactive Workspaces
+
+FalconSystem presents a workspace based on the selected user role:
 
 <details open>
-<summary><b>1. 👑 Administrator Portal (Full System Oversight)</b></summary>
+<summary><b>👑 Administrator Workspace</b></summary>
 <br>
 
-* **Target User**: Athletics Director (Ma'am Arbe)
-* **Access Route**: `/admin/dashboard`
-* **Core Permissions**:
-  - 👥 User account management & clearance level assignment.
-  - 🏃 Athlete directory and varsity team rosters.
-  - 📋 Equipment master catalog creation & depreciation records.
-  - 🛡️ Full trigger audit trail inspection with change logs.
-  - 📊 Statistical summary dashboards and equipment status reports.
+The administrator dashboard provides a high-level view of the system. Administrator navigation also includes management views such as athletes, teams, equipment, borrowing, maintenance, and audit logs.
 
 </details>
 
 <details open>
-<summary><b>2. 📦 Staff & Custodian Portal (Equipment Desk)</b></summary>
+<summary><b>📦 Staff & Custodian Workspace</b></summary>
 <br>
 
-* **Target User**: Equipment Room Custodians
-* **Access Route**: `/staff/dashboard`
-* **Core Permissions**:
-  - 📤 Immediate checkout and loan dispatch.
-  - 📥 Equipment return processing with condition verification.
-  - 🔧 Flagging damaged gear for maintenance & repair tracking.
-  - 🚨 Low-stock alerts and equipment availability audits.
+Staff can work with equipment inventory and condition, manage loan checkouts and returns, review bookings, and submit reports.
 
 </details>
 
 <details>
-<summary><b>3. 🏅 Coach Portal (Team & Varsity Roster Desk)</b></summary>
+<summary><b>🏅 Coach Workspace</b></summary>
 <br>
 
-* **Target User**: Head & Assistant Coaches
-* **Access Route**: `/coach/dashboard`
-* **Core Permissions**:
-  - ⚾ Varsity team member roster and line-up coordination.
-  - 📦 Bulk practice and game-day equipment requisition.
-  - 📜 Real-time monitoring of team borrowed assets.
+The coach dashboard provides access to team-related information and equipment borrowing workflows.
 
 </details>
 
 <details>
-<summary><b>4. 🎓 Student Athlete Portal (Personal Self-Service)</b></summary>
+<summary><b>🎓 Student Athlete Workspace</b></summary>
 <br>
 
-* **Target User**: Enrolled Student Athletes
-* **Access Route**: `/student/dashboard`
-* **Core Permissions**:
-  - 📱 View active equipment loans with expected return dates.
-  - 📜 Complete transaction history and returned item receipts.
-  - 🏆 Varsity team membership and coach details.
+The student workspace provides access to equipment and coach-related activities, including booking and loan information.
 
 </details>
 
 ---
 
-## 📸 Interactive Portal Previews
+## 🔄 Borrowing Records
 
-> Click any tab below to expand and view the high-resolution interface preview:
+The borrowing records interface is implemented in [`src/pages/BorrowingView.tsx`](src/pages/BorrowingView.tsx). It displays transaction summaries and detailed loan records:
 
-<details open>
-<summary><b>🔑 View 1: Secure Authentication Portal (<code>/login</code>)</b></summary>
-<p align="center">
-  <img src="login.png" alt="FalconSystem Login Portal" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);" />
-</p>
-</details>
+| View Feature | Description |
+| :--- | :--- |
+| **Summary cards** | Counts total transactions, active loans, overdue loans, and completed returns. |
+| **Status filters** | Filters records by all, active, overdue, or returned. |
+| **Transaction details** | Shows borrower, expected return date, approving staff member, remarks, and item return totals. |
+| **Expandable item rows** | Shows equipment name and code, borrowed and returned quantities, conditions, and item return status. |
+| **New Checkout** | Opens the checkout workflow for non-student roles. |
+| **Process Return** | Opens the return workflow for transactions that have not been fully returned. |
 
-<details open>
-<summary><b>👑 View 2: Administrator Command Dashboard (<code>/admin/dashboard</code>)</b></summary>
-<p align="center">
-  <img src="admin.png" alt="FalconSystem Admin Portal" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);" />
-</p>
-</details>
-
-<details>
-<summary><b>📦 View 3: Equipment Custodian Operations Desk (<code>/staff/dashboard</code>)</b></summary>
-<p align="center">
-  <img src="staff.png" alt="FalconSystem Custodian Desk" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);" />
-</p>
-</details>
-
-<details>
-<summary><b>🏅 View 4: Varsity Coach Roster & Gear Hub (<code>/coach/dashboard</code>)</b></summary>
-<p align="center">
-  <img src="coach.png" alt="FalconSystem Coach Portal" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);" />
-</p>
-</details>
-
-<details>
-<summary><b>🎓 View 5: Student Athlete Self-Service Portal (<code>/student/dashboard</code>)</b></summary>
-<p align="center">
-  <img src="student.png" alt="FalconSystem Student Portal" width="95%" style="border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);" />
-</p>
-</details>
+Checkout and return dialogs are implemented in [`src/components/CheckoutModal.tsx`](src/components/CheckoutModal.tsx) and [`src/components/ReturnModal.tsx`](src/components/ReturnModal.tsx). The shared transaction and item models, including partial return statuses, are defined in [`src/types/database.ts`](src/types/database.ts).
 
 ---
 
-## ⚡ Database Engineering Features
+## ⚡ Database & Data Features
 
 <div align="center">
 
-| Feature Type | Routine / Object Name | Description |
+| Feature Type | Object / File | Description |
 | :--- | :--- | :--- |
-| **Stored Procedure** | `sp_process_borrowing` | Atomically verifies stock, checks out gear, decrements available inventory, and rolls back on insufficient items. |
-| **Stored Procedure** | `sp_process_return` | Restores available quantity, computes overdue days, and marks damaged units for maintenance. |
-| **Stored Function** | `fn_overdue_days` | Calculates exact days elapsed beyond expected return deadlines. |
-| **Stored Function** | `fn_equipment_availability` | Computes dynamic stock status (`Available`, `Low Stock`, `Out of Stock`). |
-| **Trigger** | `trg_audit_equipment_insert` | Logs creation of new athletic gear into `audit_logs`. |
-| **Trigger** | `trg_audit_borrowing_status` | Detects and audits loan status transitions in real time. |
-| **SQL View** | `vw_current_borrowings` | Live relational snapshot of all unreturned equipment and borrower details. |
-| **SQL View** | `vw_equipment_inventory` | Aggregated catalog tracking total, assigned, and damaged stock levels. |
+| **Database schema** | `supabase/schema.sql` | Defines the PostgreSQL tables and relationships used by the application. |
+| **Database views** | `vw_active_loans_summary` | Provides a summary of active loans, borrowers, overdue days, and returned units. |
+| **Database views** | `vw_equipment_inventory_status` | Summarizes equipment quantities, utilization, stock health, and maintenance jobs. |
+| **Supabase client** | `src/services/supabase.ts` | Connects to Supabase and exposes application data operations. |
+| **Mock data** | `src/services/mockData.ts` | Supplies local sample data and operations when exploring without a live database. |
 
 </div>
 
 ---
 
-## 📁 Repository Directory & File Map
+## 📁 Project Structure
 
 ```text
-📂 IM101a_System/
-├── 📂 app/
-│   ├── 📂 Http/
-│   │   ├── 📂 Controllers/
-│   │   │   ├── 📄 AdminController.php         # User management, rosters, and audit trails
-│   │   │   ├── 📄 AuthController.php          # Authentication, sessions, & role redirects
-│   │   │   ├── 📄 BorrowingController.php     # Requisition, checkout, & return dispatch
-│   │   │   ├── 📄 DashboardController.php     # Multi-role dashboard statistical loaders
-│   │   │   ├── 📄 EquipmentController.php     # Equipment catalog & stock CRUD
-│   │   │   └── 📄 MaintenanceController.php   # Equipment repairs & damage logs
-│   │   └── 📂 Middleware/
-│   │       └── 📄 CheckRole.php               # Multi-tier RBAC route authorization guard
-│   └── 📂 Models/
-│       ├── 📄 Athlete.php                     # Student athlete profile entity
-│       ├── 📄 AuditLog.php                    # DB trigger-generated audit trail model
-│       ├── 📄 BorrowingItem.php               # Transaction line-item model
-│       ├── 📄 BorrowingTransaction.php        # Borrowing loan header model
-│       ├── 📄 Coach.php                       # Varsity coach profile entity
-│       ├── 📄 Equipment.php                   # Athletic gear entity
-│       ├── 📄 MaintenanceRecord.php           # Repair tracking & condition logs
-│       ├── 📄 Role.php                        # RBAC role permissions entity
-│       ├── 📄 Team.php                        # Varsity & club team entity
-│       └── 📄 User.php                        # Central credential & identity model
-├── 📂 database/
-│   ├── 📂 migrations/                         # 3NF schema tables & foreign keys
-│   ├── 📂 seeders/                            # Default accounts, roles, & demo inventory
-│   └── 📂 sql/
-│       └── 📄 database_automation.sql         # Stored procedures, triggers, views & functions
+📂 IM101_js/
 ├── 📂 public/
-│   ├── 📂 images/                             # University logos & system branding
-│   └── 📄 index.php                           # Application HTTP entrypoint
-├── 📂 resources/views/
-│   ├── 📂 admin/                              # Administrator portal Blade views
-│   ├── 📂 coach/                              # Coach portal Blade views
-│   ├── 📂 staff/                              # Equipment custodian Blade views
-│   ├── 📂 student/                            # Student athlete Blade views
-│   ├── 📂 layouts/                            # Responsive sidebar layout with RBAC navbar
-│   └── 📂 auth/                               # Login & recovery interfaces
-├── 📂 routes/
-│   ├── 📄 web.php                             # Web routes with RBAC middleware protection
-│   └── 📄 console.php                         # Artisan commands (including test:defense)
-├── 📄 .env.example                            # Config template (pre-configured for port 3308)
-├── 📄 serve.bat                               # Quick-start server script
-└── 📄 test.bat                                # Automated defense suite runner
+│   └── 📂 images/                 # Application branding and static images
+├── 📂 src/
+│   ├── 📂 components/             # Navigation, modals, and shared UI components
+│   │   ├── 📄 CheckoutModal.tsx   # Equipment checkout workflow
+│   │   └── 📄 ReturnModal.tsx     # Equipment return workflow
+│   ├── 📂 pages/                  # Role dashboards and application views
+│   │   └── 📄 BorrowingView.tsx   # Borrowing records, filters, and item details
+│   ├── 📂 services/               # Supabase integration and mock data
+│   ├── 📂 types/                  # Shared TypeScript data models
+│   ├── 📄 App.tsx                 # Application shell and role-based workspace
+│   └── 📄 index.css               # Global application styles
+├── 📂 supabase/
+│   └── 📄 schema.sql              # PostgreSQL schema and database objects
+├── 📄 .env.example                # Supabase environment variable template
+├── 📄 package.json                # Dependencies and npm scripts
+└── 📄 vite.config.ts              # Vite configuration
 ```
 
 ---
@@ -267,53 +198,41 @@ flowchart TD
 ## 🚀 Quick Start Guide
 
 ### 1. Requirements
-* **PHP** >= 8.2 (with PDO MySQL enabled)
-* **XAMPP / MariaDB** (Default configured port: `3308`)
-* **Composer**
+* **Node.js** and **npm**
+* A **Supabase project** for live database mode (optional when using mock data)
 
 ### 2. Installation Steps
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/SamNahutdo/IM101a_System.git
-cd IM101a_System
+# 1. Install dependencies
+npm ci
 
-# 2. Copy the environment configuration
-copy .env.example .env
+# 2. Optional: configure Supabase
+# Copy .env.example to .env and fill in the project URL and public anon key.
 
-# 3. Install backend dependencies
-composer install
-
-# 4. Generate system application key
-php artisan key:generate
-
-# 5. Run Database Migrations, Seeders & SQL Automation
-php artisan migrate:fresh --seed
-php artisan db:automation
-
-# 6. Verify with the Automated Defense Suite
-php artisan test:defense
-# (or double-click test.bat)
-
-# 7. Start the local server
-php artisan serve
-# (or double-click serve.bat)
+# 3. Start the development server
+npm run dev
 ```
 
-> [!TIP]
-> **Server Access**: Once running, open your browser and navigate to:
-> **`http://127.0.0.1:8000`**
+Open the local URL printed by Vite in your browser. When Supabase is not configured, the app can use its mock-data mode.
 
----
+To enable Supabase, set these values in `.env`:
 
-## 🔐 Default Test Accounts
+```dotenv
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
 
-| Portal Clearance | Username | Password | Notes |
-| :--- | :--- | :--- | :--- |
-| **👑 Administrator** | `admin` | `password123` | Full administrative control |
-| **📦 Equipment Custodian** | `staff1` | `password123` | Equipment checkout & return desk |
-| **🏅 Varsity Coach** | `coach_baseball` | `password123` | Baseball varsity team coach |
-| **🎓 Student Athlete** | `athlete_juan` | `password123` | Enrolled student athlete |
+> [!WARNING]
+> `supabase/schema.sql` drops and recreates application tables and views. Review it and run it only against a new or disposable database unless you intend to replace its existing data. Never expose a Supabase `service_role` key in frontend code or environment variables.
+
+### 3. Available Commands
+
+| Command | Description |
+| :--- | :--- |
+| `npm run dev` | Starts the Vite development server. |
+| `npm run build` | Runs TypeScript checks and creates the production build in `dist/`. |
+| `npm run preview` | Previews the production build locally. |
 
 ---
 
@@ -323,9 +242,9 @@ php artisan serve
 
 | Member | Assigned Specialty | Core Contributions |
 | :---: | :---: | :--- |
-| **Sam Udtohan** | **Backend Server** | System architecture, HTTP routing, RBAC middleware, controller implementation, and session security. |
-| **Rizamae Velasco** | **Database Management** | Database schema design, 3NF normalization, stored procedures, triggers, audit logging, and analytical views. |
-| **Ace Arcamo** | **Frontend** | UI/UX engineering, modern dashboard styling, Blade components, interactive tables, and responsive mobile layouts. |
+| **Sam Udtohan** | **Backend & Database** | Database design, Supabase integration, and application data workflows. |
+| **Rizamae Velasco** | **Database Management** | Database schema design and database automation. |
+| **Ace Arcamo** | **Frontend** | UI/UX engineering, React components, dashboards, and responsive layouts. |
 
 </div>
 
