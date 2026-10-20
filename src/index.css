@@ -10,17 +10,17 @@
   --sidebar-hover: rgba(255, 255, 255, 0.08);
   --sidebar-text: #9EABCE;
   --sidebar-header: #6D7CA7;
-  
+
   --coral: #FF6F59;
   --coral-hover: #f55a42;
   --coral-gradient: linear-gradient(135deg, #FF6F59 0%, #FF533B 100%);
   --coral-shadow: 0 10px 24px rgba(255, 111, 89, 0.28);
-  
+
   --cyan-gradient: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
   --green-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
   --indigo-gradient: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%);
   --amber-gradient: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  
+
   --card-radius: 20px;
   --card-shadow: 0 8px 24px rgba(26, 40, 95, 0.04);
   --border-soft: #E2E8F0;
@@ -788,8 +788,13 @@ body {
 }
 
 @keyframes fadeInBackdrop {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .sidebar-close-btn {
@@ -933,8 +938,8 @@ body {
   }
 
   /* Grid adjustments on tablet/mobile */
-  .dashboard-stats-row > .col,
-  .row.g-3 > .col {
+  .dashboard-stats-row>.col,
+  .row.g-3>.col {
     flex: 0 0 calc(50% - 0.75rem);
     max-width: calc(50% - 0.75rem);
   }
@@ -971,8 +976,8 @@ body {
     padding: 0.75rem 0.75rem 5.5rem;
   }
 
-  .dashboard-stats-row > .col,
-  .row.g-3 > .col {
+  .dashboard-stats-row>.col,
+  .row.g-3>.col {
     flex: 0 0 100%;
     max-width: 100%;
   }
@@ -987,7 +992,7 @@ body {
     flex: auto;
   }
 
-  .filter-bar > div:last-child {
+  .filter-bar>div:last-child {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -1032,18 +1037,24 @@ body {
   height: 600px;
   border-radius: 50%;
   background: radial-gradient(circle,
-    rgba(255, 111, 89, 0.28) 0%,
-    rgba(255, 83, 59, 0.12) 50%,
-    transparent 70%
-  );
+      rgba(255, 111, 89, 0.28) 0%,
+      rgba(255, 83, 59, 0.12) 50%,
+      transparent 70%);
   filter: blur(40px);
   pointer-events: none;
   animation: glowPulse 3s ease-in-out infinite alternate;
 }
 
 @keyframes glowPulse {
-  0%   { transform: scale(0.85); opacity: 0.5; }
-  100% { transform: scale(1.20); opacity: 0.9; }
+  0% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(1.20);
+    opacity: 0.9;
+  }
 }
 
 /* Logo container — transforms set entirely via JS inline styles */
@@ -1053,7 +1064,24 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 10;
+  opacity: 0.2;
+  transform: translateY(80vh) scale(0.35);
   will-change: transform, opacity, filter;
+}
+
+.intro-tap-prompt {
+  position: absolute;
+  bottom: max(10vh, 48px);
+  z-index: 20;
+  padding: 12px 24px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  opacity: 0.2;
+  cursor: pointer;
 }
 
 /* Logo image base */
@@ -1071,9 +1099,21 @@ body {
 }
 
 @keyframes screechVibrate {
-  0%, 100% { transform: scale(1);                      }
-  20%, 60%  { transform: scale(1.03) rotate(-1.5deg);  }
-  40%, 80%  { transform: scale(1.03) rotate( 1.5deg);  }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  20%,
+  60% {
+    transform: scale(1.03) rotate(-1.5deg);
+  }
+
+  40%,
+  80% {
+    transform: scale(1.03) rotate(1.5deg);
+  }
 }
 
 /* Burst ring — self-contained, no conflict with transitions */
@@ -1090,8 +1130,15 @@ body {
 }
 
 @keyframes burstRing {
-  0%   { transform: scale(0.5); opacity: 1; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
-
+
