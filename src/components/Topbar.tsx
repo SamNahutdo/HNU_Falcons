@@ -8,6 +8,7 @@ interface TopbarProps {
   setSearchTerm: (s: string) => void;
   userDisplayName: string;
   currentRole: UserRole;
+  currentTab: string;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -15,8 +16,18 @@ export const Topbar: React.FC<TopbarProps> = ({
   searchTerm,
   setSearchTerm,
   userDisplayName,
-  currentRole
+  currentRole,
+  currentTab
 }) => {
+  const adminSearchPlaceholder: Record<string, string> = {
+    dashboard: 'Search members by name or school ID...',
+    'admin-staff': 'Search staff by name or school ID...',
+    'admin-coaches': 'Search coaches by name or school ID...',
+    'admin-students': 'Search students by name or school ID...',
+    'admin-loans': 'Search borrowers, school IDs, or equipment...',
+    'admin-reports': 'Search borrowers, equipment, or reports...'
+  };
+
   return (
     <header className="topbar">
       <div className="d-flex align-items-center flex-grow-1 me-2" style={{ maxWidth: '420px' }}>
@@ -25,7 +36,7 @@ export const Topbar: React.FC<TopbarProps> = ({
           <input
             type="text"
             className="topbar-search-input"
-            placeholder="Search equipment, athletes..."
+            placeholder={currentRole === 'admin' ? adminSearchPlaceholder[currentTab] || 'Search...' : 'Search equipment, athletes...'}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />

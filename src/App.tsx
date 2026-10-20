@@ -37,6 +37,11 @@ export const App: React.FC = () => {
   // Connection mode state
   const [isLiveMode, setIsLiveMode] = useState<boolean>(databaseService.isLive());
 
+  const handleNavigate = (tab: string) => {
+    setCurrentTab(tab);
+    setSearchTerm('');
+  };
+
   const loadAllData = useCallback(async () => {
     try {
       setIsLiveMode(databaseService.isLive());
@@ -91,7 +96,7 @@ export const App: React.FC = () => {
       {/* SIDEBAR (Role-specific streamlined navigation) */}
       <Sidebar
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={handleNavigate}
         currentRole={currentRole}
         userDisplayName={userDisplayName}
         username={username}
@@ -119,13 +124,18 @@ export const App: React.FC = () => {
           setSearchTerm={setSearchTerm}
           userDisplayName={userDisplayName}
           currentRole={currentRole}
+          currentTab={currentTab}
         />
 
         {/* MAIN BODY CONTENT (Role-Tailored Portals driven by Sidebar) */}
         <main className="main-content">
-          {/* ADMIN: ONLY DASHBOARD IS SHOWN */}
+          {/* ADMIN: DASHBOARD AND SEARCHABLE MANAGEMENT PAGES */}
           {currentRole === 'admin' && (
-            <AdminDashboardView />
+            <AdminDashboardView
+              currentTab={currentTab}
+              searchTerm={searchTerm}
+              onNavigate={handleNavigate}
+            />
           )}
 
           {/* STAFF: CRUD, AVAILABLE DAYS, ALERTS, CONDITION, REPORTS */}
@@ -134,7 +144,7 @@ export const App: React.FC = () => {
               currentRole={currentRole}
               userDisplayName={userDisplayName}
               currentTab={currentTab}
-              onNavigate={setCurrentTab}
+              onNavigate={handleNavigate}
             />
           )}
 
@@ -144,7 +154,7 @@ export const App: React.FC = () => {
               userDisplayName={userDisplayName}
               username={username}
               currentTab={currentTab}
-              onNavigate={setCurrentTab}
+              onNavigate={handleNavigate}
             />
           )}
 
@@ -154,7 +164,7 @@ export const App: React.FC = () => {
               userDisplayName={userDisplayName}
               username={username}
               currentTab={currentTab}
-              onNavigate={setCurrentTab}
+              onNavigate={handleNavigate}
             />
           )}
         </main>
@@ -162,7 +172,7 @@ export const App: React.FC = () => {
         {/* MOBILE BOTTOM NAVIGATION */}
         <BottomNav
           currentTab={currentTab}
-          setCurrentTab={setCurrentTab}
+          setCurrentTab={handleNavigate}
           onToggleMobileNav={() => setIsMobileNavOpen(prev => !prev)}
           currentRole={currentRole}
         />

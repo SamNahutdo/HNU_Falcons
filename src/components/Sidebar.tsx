@@ -65,9 +65,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <ul className="sidebar-nav mt-1">
-          {/* ==========================================================
-              1. ADMIN PORTAL (Only Dashboard is shown)
-              ========================================================== */}
+          {/* ADMIN PORTAL */}
           {currentRole === 'admin' && (
             <>
               <div className="sidebar-section-title">Menu</div>
@@ -78,6 +76,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <i className="bi bi-grid-fill"></i>
                   <span>Dashboard</span>
+                </button>
+              </li>
+              <div className="sidebar-section-title">Administration</div>
+              <li>
+                <button onClick={() => handleNav('admin-staff')} className={currentTab === 'admin-staff' ? 'active' : ''}>
+                  <i className="bi bi-person-workspace"></i>
+                  <span>Staff</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('admin-coaches')} className={currentTab === 'admin-coaches' ? 'active' : ''}>
+                  <i className="bi bi-person-badge"></i>
+                  <span>Coaches</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('admin-students')} className={currentTab === 'admin-students' ? 'active' : ''}>
+                  <i className="bi bi-people-fill"></i>
+                  <span>Students</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('admin-loans')} className={currentTab === 'admin-loans' ? 'active' : ''}>
+                  <i className="bi bi-arrow-left-right"></i>
+                  <span>Active Loans</span>
+                </button>
+              </li>
+              <li>
+                <button onClick={() => handleNav('admin-reports')} className={currentTab === 'admin-reports' ? 'active' : ''}>
+                  <i className="bi bi-flag-fill"></i>
+                  <span>Staff Reports</span>
                 </button>
               </li>
             </>
