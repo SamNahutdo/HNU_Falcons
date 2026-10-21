@@ -110,15 +110,6 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
           className="intro-logo-image"
         />
       </button>
-      {phase === 'idle' && (
-        <button
-          type="button"
-          className="intro-tap-prompt"
-          onClick={handleStart}
-        >
-          Tap the logo to continue
-        </button>
-      )}
     </div>
   );
 };

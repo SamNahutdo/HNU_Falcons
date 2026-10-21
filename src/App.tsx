@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { IntroAnimation } from './components/IntroAnimation';
@@ -60,6 +60,7 @@ export const App: React.FC = () => {
   const [showIntro, setShowIntro] = useState<boolean>(() => !initialSession);
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(initialSession));
+  const [isDashboardLoading, setIsDashboardLoading] = useState(false);
   const [currentRole, setCurrentRole] = useState<UserRole>(() => initialSession?.role || 'admin');
   const [userDisplayName, setUserDisplayName] = useState<string>(() => initialSession?.displayName || "Ma'am Arbe");
   const [username, setUsername] = useState<string>(() => initialSession?.username || 'arbe');
@@ -69,6 +70,13 @@ export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>(() => initialSession?.currentTab || 'dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isDashboardLoading) return;
+
+    const timer = window.setTimeout(() => setIsDashboardLoading(false), 1500);
+    return () => window.clearTimeout(timer);
+  }, [isDashboardLoading]);
 
   const handleNavigate = (tab: string) => {
     setCurrentTab(tab);
@@ -84,6 +92,7 @@ export const App: React.FC = () => {
   };
 
   const handleLogin = (role: UserRole, displayName: string, uname: string) => {
+    setIsDashboardLoading(true);
     setCurrentRole(role);
     setUserDisplayName(displayName);
     setUsername(uname);
@@ -122,6 +131,15 @@ export const App: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-body)' }}>
+      {isDashboardLoading && (
+        <div className="dashboard-loading-overlay" role="status" aria-live="polite">
+          <div className="dashboard-loading-mark">
+            <img src={`${import.meta.env.BASE_URL}images/Logo.png`} alt="" />
+          </div>
+          <p>Preparing your dashboard</p>
+        </div>
+      )}
+
       {/* SIDEBAR (Role-specific streamlined navigation) */}
       <Sidebar
         currentTab={currentTab}

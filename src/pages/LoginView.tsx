@@ -255,6 +255,38 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
           </div>
         )}
 
+        {/* 4 ROLES SELECTOR */}
+            <div className="mb-3">
+              <label className="form-label-custom">Role</label>
+              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                {(['admin', 'staff', 'coach', 'student'] as UserRole[]).map((r) => {
+                  const isSelected = selectedRole === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setSelectedRole(r)}
+                      aria-pressed={isSelected}
+                      style={{
+                        background: isSelected ? 'var(--coral-gradient)' : '#F1F5F9',
+                        color: isSelected ? '#FFFFFF' : '#475569',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        borderRadius: '10px',
+                        padding: '0.5rem 0.2rem',
+                        border: isSelected ? '1px solid var(--coral)' : '1px solid transparent',
+                        cursor: 'pointer',
+                        textTransform: 'capitalize',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
         {/* LOG IN FORM */}
         {activeMode === 'login' ? (
           <form onSubmit={handleLoginSubmit}>
@@ -286,36 +318,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
               </div>
             </div>
 
-            {/* 4 ROLES SELECTOR */}
-            <div className="mb-3">
-              <label className="form-label-custom">Role</label>
-              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                {(['admin', 'staff', 'coach', 'student'] as UserRole[]).map((r) => {
-                  const isSelected = selectedRole === r;
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setSelectedRole(r)}
-                      style={{
-                        background: isSelected ? 'var(--sidebar-bg)' : '#F1F5F9',
-                        color: isSelected ? '#FFFFFF' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        borderRadius: '10px',
-                        padding: '0.5rem 0.2rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        textTransform: 'capitalize',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {r}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            
 
             <div className="d-flex justify-content-between align-items-center mb-4" style={{ fontSize: '0.82rem' }}>
               <label className="d-flex align-items-center gap-2 text-secondary mb-0" style={{ cursor: 'pointer' }}>

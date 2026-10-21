@@ -84,3 +84,6 @@ SELECT
     (SELECT count(*) FROM teams) AS teams,
     (SELECT count(*) FROM roles WHERE name <> 'admin') AS non_admin_roles,
     (SELECT count(*) FROM users WHERE id <> '10000000-0000-0000-0000-000000000001') AS non_admin_users;
+
+
+
