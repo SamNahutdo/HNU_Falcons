@@ -172,7 +172,7 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
           </div>
           <div className="stat-label">Sports Programs</div>
           <div className="stat-trend">Allocated disciplines</div>
-          <div className="stat-value" style={{ color: '#6366F1' }}>{sports.length}</div>
+          <div className="stat-value" style={{ color: '#287B9C' }}>{sports.length}</div>
         </div>
       </div>
 
@@ -300,7 +300,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: 'var(--coral-shadow)',
               cursor: 'pointer',
               transition: 'all 0.2s ease'
             }}
@@ -442,7 +441,7 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
                               }}
                               title="Schedule Maintenance"
                             >
-                              <Wrench size={14} color="#6366F1" />
+                              <Wrench size={14} color="#287B9C" />
                             </button>
                             {currentRole === 'admin' && (
                               <button
@@ -494,7 +493,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
             borderRadius: '24px',
             maxWidth: '540px',
             width: '100%',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: '1px solid #E2E8F0',
             overflow: 'hidden'
           }} onClick={(e) => e.stopPropagation()}>
@@ -632,7 +630,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
                     background: 'var(--coral-gradient)',
                     color: '#FFFFFF',
                     fontWeight: 700,
-                    boxShadow: 'var(--coral-shadow)',
                     cursor: 'pointer'
                   }}
                 >
@@ -662,7 +659,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
             borderRadius: '24px',
             maxWidth: '520px',
             width: '100%',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: '1px solid #E2E8F0',
             overflow: 'hidden'
           }} onClick={(e) => e.stopPropagation()}>
@@ -767,7 +763,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
                     background: 'var(--coral-gradient)',
                     color: '#FFFFFF',
                     fontWeight: 700,
-                    boxShadow: 'var(--coral-shadow)',
                     cursor: 'pointer'
                   }}
                 >

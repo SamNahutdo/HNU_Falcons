@@ -47,7 +47,6 @@ export const DefenseHubView: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(37, 99, 235, 0.4)'
           }}>
             <GraduationCap size={26} color="#ffffff" />
           </div>

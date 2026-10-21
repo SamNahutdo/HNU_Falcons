@@ -39,7 +39,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
   return (
     <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(5px)', zIndex: 1070 }}>
       <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '440px' }}>
-        <div className="modal-content" style={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.35)', overflow: 'hidden' }}>
+        <div className="modal-content" style={{ borderRadius: '24px', border: 'none', overflow: 'hidden' }}>
 
           {/* MODAL HEADER */}
           <div className="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
@@ -63,7 +63,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLogin
               <img
                 src={`${import.meta.env.BASE_URL}images/Logo.png`}
                 alt="Falcon Athletics Logo"
-                style={{ maxHeight: '72px', objectFit: 'contain', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.12))' }}
+                style={{ maxHeight: '72px', objectFit: 'contain' }}
               />
               <h5 className="fw-bold mt-2 mb-1" style={{ color: '#20295B' }}>Welcome Back</h5>
               <p className="text-muted small mb-0">Sign in to your Falcon Athletics account</p>

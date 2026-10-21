@@ -174,7 +174,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="fw-bold mb-1 text-dark">Student Athlete Portal</h4>
-          <span className="text-muted small">Browse available gear, book varsity coaches, and track loan deadlines</span>
         </div>
 
       </div>
@@ -209,7 +208,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Available Sports Equipment</h5>
-              <small className="text-muted">Displaying items ready for loan checkout</small>
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -243,7 +241,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
                 <div key={eq.id} className="col-12 col-md-6 col-lg-4">
                   <div
                     className="p-3 rounded-4 h-100 d-flex flex-column justify-content-between"
-                    style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}
+                    style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}
                   >
                     <div>
                       <div className="d-flex justify-content-between align-items-start mb-2">
@@ -299,7 +297,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Book a Varsity Coach</h5>
-              <small className="text-muted">Check coach availability schedules and submit a training request</small>
             </div>
             <span className="badge bg-primary rounded-pill px-3 py-1">
               {filteredCoaches.length} Varsity Coaches
@@ -315,7 +312,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
                 <div key={c.id} className="col-12 col-md-6">
                   <div
                     className="p-4 rounded-4 h-100 d-flex flex-column justify-content-between"
-                    style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0', boxShadow: '0 6px 18px rgba(0,0,0,0.03)' }}
+                    style={{ background: '#FFFFFF', border: '1.5px solid #E2E8F0' }}
                   >
                     <div>
                       <div className="d-flex justify-content-between align-items-start mb-2">

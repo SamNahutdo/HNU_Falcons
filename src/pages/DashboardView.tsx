@@ -81,7 +81,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <i className="bi bi-cart3"></i>
                 </div>
                 <div className="stat-label">Maintenance</div>
-                <div className="stat-trend" style={{ color: '#6366F1' }}>Active Work Orders</div>
+                <div className="stat-trend" style={{ color: '#287B9C' }}>Active Work Orders</div>
                 <h3 className="stat-value text-dark">{maintenanceCount}</h3>
               </div>
             </div>
@@ -265,7 +265,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* RIGHT COLUMN: Hero Coral Card & Upcoming Returns */}
             <div className="col-lg-4 d-flex flex-column gap-4">
               {/* HERO CORAL CARD (Screenshot 2) */}
-              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF', boxShadow: 'var(--coral-shadow)' }}>
+              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF' }}>
                 <div className="d-flex justify-content-between align-items-start">
                   <div>
                     <h2 className="fw-bold mb-0 text-white" style={{ fontSize: '2.2rem', letterSpacing: '-0.5px' }}>
@@ -484,7 +484,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* QUICK ACTIONS & STATUS (Screenshot 3) */}
             <div className="col-lg-4 d-flex flex-column gap-4">
               {/* HERO CORAL ACTION CARD */}
-              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF', boxShadow: 'var(--coral-shadow)' }}>
+              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF' }}>
                 <h5 className="fw-bold mb-1 text-white">Desk Actions</h5>
                 <p className="small mb-3" style={{ color: 'rgba(255,255,255,0.85)' }}>Fast checkout & return management</p>
 
@@ -664,7 +664,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             {/* STUDENT PROFILE SUMMARY (Screenshot 4) */}
             <div className="col-lg-4 d-flex flex-column gap-4">
-              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF', boxShadow: 'var(--coral-shadow)' }}>
+              <div style={{ background: 'var(--coral-gradient)', borderRadius: '22px', padding: '1.75rem', color: '#FFFFFF' }}>
                 <div className="d-flex align-items-center gap-3 mb-3">
                   <div className="profile-avatar" style={{ width: '48px', height: '48px', fontSize: '1.1rem' }}>
                     RV

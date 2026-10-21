@@ -81,7 +81,7 @@ export const AthletesView: React.FC<AthletesViewProps> = ({
           </div>
           <div className="stat-label">Varsity Squads</div>
           <div className="stat-trend">Competitive categories</div>
-          <div className="stat-value" style={{ color: '#6366F1' }}>{teams.length}</div>
+          <div className="stat-value" style={{ color: '#287B9C' }}>{teams.length}</div>
         </div>
       </div>
 
@@ -150,7 +150,6 @@ export const AthletesView: React.FC<AthletesViewProps> = ({
                       fontWeight: 800,
                       fontSize: '1.15rem',
                       color: '#ffffff',
-                      boxShadow: '0 4px 12px rgba(255, 111, 89, 0.35)'
                     }}>
                       {ath.user?.full_name?.charAt(0) || 'A'}
                     </div>

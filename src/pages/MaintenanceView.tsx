@@ -126,7 +126,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
           <button
             type="button"
             className="btn rounded-pill px-4 py-2 text-white d-inline-flex align-items-center gap-2"
-            style={{ background: 'var(--coral-gradient)', fontWeight: 700, boxShadow: 'var(--coral-shadow)' }}
+            style={{ background: 'var(--coral-gradient)', fontWeight: 700 }}
             onClick={() => setIsModalOpen(true)}
           >
             <i className="bi bi-tools"></i>
@@ -217,7 +217,6 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                   fontWeight: 700,
                   fontSize: '0.8rem',
                   border: 'none',
-                  boxShadow: filterStatus === tab.key ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -311,8 +310,8 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                               width: '28px',
                               height: '28px',
                               borderRadius: '50%',
-                              background: '#EEF2FF',
-                              color: '#4F46E5',
+                              background: '#E0F4FC',
+                              color: '#287B9C',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -368,7 +367,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
           style={{ backgroundColor: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(5px)', zIndex: 1070 }}
         >
           <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '480px' }}>
-            <div className="modal-content" style={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.35)', overflow: 'hidden' }}>
+            <div className="modal-content" style={{ borderRadius: '24px', border: 'none', overflow: 'hidden' }}>
               <div className="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
                 <h5 className="modal-title fw-bold" style={{ color: '#20295B' }}>
                   <i className="bi bi-tools text-primary me-2"></i>

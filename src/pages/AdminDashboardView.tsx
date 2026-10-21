@@ -177,155 +177,164 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           ? 'Active Loans'
           : currentTab === 'admin-reports'
             ? 'Staff Reports'
-            : 'Institutional Administration';
+            : 'Falcons Administration';
 
   if (currentTab === 'dashboard') {
+    const recentAccounts = [...dashboardAccounts]
+      .sort((first, second) => second.created_at.localeCompare(first.created_at))
+      .slice(0, 4);
+
     return (
-      <div className="container-fluid px-0">
-        <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-          <div>
-            <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
-            <span className="text-muted small">User accounts and registration activity</span>
-          </div>
-        </div>
+      <div className="admin-dashboard">
+        <div className="admin-dashboard-main">
+          <header className="admin-dashboard-header">
+            <div>
+              <h1>{pageTitle}</h1>
+            </div>
+            <AdminSearch
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search members by name or school ID..."
+            />
+          </header>
 
-        <div className="row g-3 mb-4">
-          <div className="col-12 col-sm-6 col-xl">
-            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-staff')} style={{ cursor: 'pointer' }}>
-              <div className="stat-icon-circle stat-icon-cyan"><i className="bi bi-person-workspace"></i></div>
-              <div className="stat-label">Staff Registered</div>
-              <div className="stat-trend" style={{ color: '#0EA5E9' }}>Equipment Desk Custodians</div>
-              <h3 className="stat-value text-dark">{staffCount}</h3>
-            </div>
+          <div className="admin-stat-grid">
+            <button type="button" className="admin-stat-card stat-tint-blue" onClick={() => onNavigate('admin-staff')}>
+              <span className="admin-stat-label">Staff Registered</span>
+              <strong>{staffCount}</strong>
+            </button>
+            <button type="button" className="admin-stat-card stat-tint-purple" onClick={() => onNavigate('admin-coaches')}>
+              <span className="admin-stat-label">Coaches Registered</span>
+              <strong>{coachCount}</strong>
+            </button>
+            <button type="button" className="admin-stat-card stat-tint-cyan" onClick={() => onNavigate('admin-students')}>
+              <span className="admin-stat-label">Students Registered</span>
+              <strong>{studentCount}</strong>
+            </button>
+            <button type="button" className="admin-stat-card stat-tint-green" onClick={() => onNavigate('admin-loans')}>
+              <span className="admin-stat-label">Active Loans</span>
+              <strong>{activeLoansCount}</strong>
+            </button>
+            <button type="button" className="admin-stat-card stat-tint-amber" onClick={() => onNavigate('admin-reports')}>
+              <span className="admin-stat-label">Staff Reports</span>
+              <strong>{pendingReportsCount}</strong>
+            </button>
           </div>
-          <div className="col-12 col-sm-6 col-xl">
-            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-coaches')} style={{ cursor: 'pointer' }}>
-              <div className="stat-icon-circle stat-icon-indigo"><i className="bi bi-person-badge"></i></div>
-              <div className="stat-label">Coaches Registered</div>
-              <div className="stat-trend" style={{ color: '#6366F1' }}>Varsity Head &amp; Asst</div>
-              <h3 className="stat-value text-dark">{coachCount}</h3>
-            </div>
-          </div>
-          <div className="col-12 col-sm-6 col-xl">
-            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-students')} style={{ cursor: 'pointer' }}>
-              <div className="stat-icon-circle stat-icon-green"><i className="bi bi-people-fill"></i></div>
-              <div className="stat-label">Students Registered</div>
-              <div className="stat-trend" style={{ color: '#10B981' }}>Collegiate Athletes</div>
-              <h3 className="stat-value text-dark">{studentCount}</h3>
-            </div>
-          </div>
-          <div className="col-12 col-sm-6 col-xl">
-            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-loans')} style={{ cursor: 'pointer' }}>
-              <div className="stat-icon-circle stat-icon-coral"><i className="bi bi-arrow-left-right"></i></div>
-              <div className="stat-label">Active Loans</div>
-              <div className="stat-trend" style={{ color: 'var(--coral)' }}>Currently Borrowed</div>
-              <h3 className="stat-value" style={{ color: 'var(--coral)' }}>{activeLoansCount}</h3>
-            </div>
-          </div>
-          <div className="col-12 col-sm-6 col-xl">
-            <div className="card-stat-modern h-100" onClick={() => onNavigate('admin-reports')} style={{ cursor: 'pointer' }}>
-              <div className="stat-icon-circle stat-icon-amber"><i className="bi bi-exclamation-triangle-fill"></i></div>
-              <div className="stat-label">Staff Reports</div>
-              <div className="stat-trend" style={{ color: '#F59E0B' }}>Broken &amp; Overdue</div>
-              <h3 className="stat-value text-dark">{pendingReportsCount}</h3>
-            </div>
-          </div>
-        </div>
 
-        <div className="row g-4">
-          <div className="col-lg-8">
-            <section className="card-modern h-100" aria-labelledby="user-registration-title">
-              <div className="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+          <div className="admin-analytics-grid">
+            <section className="admin-panel admin-chart-panel" aria-labelledby="user-registration-title">
+              <div className="admin-panel-heading">
                 <div>
-                  <h5 id="user-registration-title" className="fw-bold mb-1 text-dark">User Registrations</h5>
-                  <small className="text-muted">
-                    {search ? 'Matching new accounts registered each day over the last 7 days' : 'New accounts registered each day over the last 7 days'}
-                  </small>
+                  <h2 id="user-registration-title">User Registrations</h2>
                 </div>
-                <span className="pill-soft pill-coral">
-                  <i className="bi bi-people-fill"></i>
-                  {registrationsThisWeek} last 7 days
-                </span>
+                <span className="admin-period-pill">{registrationsThisWeek} this week</span>
               </div>
-
-              <AdminSearch
-                searchTerm={searchTerm}
-                onSearchChange={setSearchTerm}
-                placeholder="Search members by name or school ID..."
-              />
-
-              <div className="position-relative" style={{ height: '270px', width: '100%' }}>
+              <div className="admin-chart">
                 <svg
                   viewBox="0 0 700 230"
                   role="img"
                   aria-label="New user registrations by day for the last seven days"
-                  style={{ width: '100%', height: '100%', overflow: 'visible' }}
                 >
                   <defs>
                     <linearGradient id="userRegistrationArea" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#FF6F59" stopOpacity="0.28" />
-                      <stop offset="100%" stopColor="#FF6F59" stopOpacity="0.02" />
+                      <stop offset="0%" stopColor="#35b77b" stopOpacity="0.24" />
+                      <stop offset="100%" stopColor="#35b77b" stopOpacity="0.01" />
                     </linearGradient>
                   </defs>
                   {[46, 88, 130, 172].map((y, index) => (
                     <g key={y}>
-                      <line x1="48" y1={y} x2="678" y2={y} stroke="#EDF1F7" strokeWidth="1" />
-                      <text x="38" y={y + 4} fill="#94A3B8" fontSize="11" textAnchor="end">
+                      <line x1="48" y1={y} x2="678" y2={y} stroke="#edf0f6" strokeWidth="1" />
+                      <text x="38" y={y + 4} fill="#9aa2b1" fontSize="11" textAnchor="end">
                         {Math.round(chartAxisMaximum * (3 - index) / 3)}
                       </text>
                     </g>
                   ))}
                   <path d={chartAreaPath} fill="url(#userRegistrationArea)" />
-                  <path d={chartLinePath} fill="none" stroke="#FF6F59" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d={chartLinePath} fill="none" stroke="#35b77b" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
                   {chartPoints.map(point => (
                     <g key={point.dateKey}>
-                      <circle cx={point.x} cy={point.y} r="5" fill="#FF6F59" stroke="#FFFFFF" strokeWidth="2.5" />
+                      <circle cx={point.x} cy={point.y} r="5" fill="#35b77b" stroke="#FFFFFF" strokeWidth="2.5" />
                       <title>{`${point.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}: ${point.count} new ${point.count === 1 ? 'user' : 'users'}`}</title>
-                      <text x={point.x} y="211" fill="#64748B" fontSize="11" textAnchor="middle">
+                      <text x={point.x} y="211" fill="#7e8798" fontSize="11" textAnchor="middle">
                         {point.date.toLocaleDateString('en-US', { weekday: 'short' })}
                       </text>
                     </g>
                   ))}
                 </svg>
               </div>
-              <div className="d-flex align-items-center gap-2 mt-2 small text-muted">
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--coral)', display: 'inline-block' }} />
-                New user accounts
-              </div>
+              <div className="admin-chart-legend"><span /> New user accounts</div>
             </section>
-          </div>
 
-          <div className="col-lg-4">
-            <section
-              className="h-100 rounded-4 p-4 text-white"
-              aria-label="User account summary"
-              style={{ background: 'linear-gradient(145deg, #FF725C, #F4513D)', boxShadow: '0 12px 28px rgba(244, 81, 61, 0.2)' }}
-            >
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <div className="fs-2 fw-bold">{dashboardAccounts.length}</div>
-                <span className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: 40, height: 40, background: 'rgba(255,255,255,0.2)' }}>
-                  <i className="bi bi-people-fill fs-5"></i>
-                </span>
+            <section className="admin-total-card" aria-label="User account summary">
+              <span className="admin-total-icon"><i className="bi bi-people-fill"></i></span>
+              <div className="admin-total-label">{search ? 'Matching Accounts' : 'Registered Accounts'}</div>
+              <strong>{dashboardAccounts.length}</strong>
+              <div className="admin-total-row">
+                <span>Online now</span>
+                <b>{dashboardAccounts.filter(user => user.is_online).length}</b>
               </div>
-              <div className="fw-semibold mb-4">{search ? 'Matching Accounts' : 'Registered Accounts'}</div>
-              <div className="d-flex justify-content-between align-items-center py-2 border-top border-white border-opacity-25">
-                <span><i className="bi bi-circle-fill me-2" style={{ fontSize: '0.55rem' }}></i>Online now</span>
-                <strong>{dashboardAccounts.filter(user => user.is_online).length}</strong>
+              <div className="admin-total-row">
+                <span>Added this week</span>
+                <b>{registrationsThisWeek}</b>
               </div>
-              <div className="d-flex justify-content-between align-items-center py-2 border-top border-white border-opacity-25">
-                <span><i className="bi bi-arrow-up-circle-fill me-2"></i>Registered last 7 days</span>
-                <strong>{registrationsThisWeek}</strong>
-              </div>
-              <button
-                type="button"
-                className="btn btn-light rounded-pill fw-semibold w-100 mt-3"
-                onClick={() => onNavigate('admin-students')}
-              >
-                View Students <i className="bi bi-arrow-right ms-1"></i>
+              <button type="button" onClick={() => onNavigate('admin-students')}>
+                Browse students <i className="bi bi-arrow-right"></i>
               </button>
             </section>
           </div>
         </div>
+
+        <aside className="admin-activity-rail" aria-label="Account and system activity">
+          <section className="admin-rail-summary">
+            <div className="admin-rail-title">
+              <div>
+                <h2>System status</h2>
+              </div>
+              <span className="admin-live-dot" aria-label="Live" />
+            </div>
+            <div className="admin-rail-stat">
+              <span>Verified accounts</span>
+              <strong>{registeredUsers.filter(user => user.is_verified).length}</strong>
+            </div>
+            <button type="button" className="admin-pending-link" onClick={() => onNavigate('admin-verifications')}>
+              <span>Pending verification</span>
+              <b>{pendingUsers.length}<i className="bi bi-chevron-right"></i></b>
+            </button>
+          </section>
+
+          <section className="admin-rail-section">
+            <div className="admin-rail-title">
+              <div>
+                <h2>Recent accounts</h2>
+              </div>
+            </div>
+            <div className="admin-recent-list">
+              {recentAccounts.length === 0 ? (
+                <p className="admin-empty-state">No accounts match your search.</p>
+              ) : recentAccounts.map(user => (
+                <div className="admin-recent-account" key={user.id}>
+                  <span className={`admin-account-avatar avatar-${user.role}`}>
+                    {user.full_name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}
+                  </span>
+                  <div className="admin-account-details">
+                    <strong>{user.full_name}</strong>
+                    <span>{user.role} · {new Date(user.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <span className={`admin-account-status ${user.is_verified ? 'verified' : 'unverified'}`} title={user.is_verified ? 'Verified' : 'Needs verification'} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="admin-rail-attention">
+            <span className="admin-attention-icon"><i className="bi bi-bell"></i></span>
+            <h2>Needs attention</h2>
+            <button type="button" onClick={() => onNavigate('admin-loans')}>
+              Review {activeLoansCount + pendingReportsCount} items
+              <i className="bi bi-arrow-right"></i>
+            </button>
+          </section>
+        </aside>
       </div>
     );
   }
@@ -336,7 +345,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
           <div>
             <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
-            <span className="text-muted small">Review new accounts and approve access to the system</span>
           </div>
           <span className="badge rounded-pill px-3 py-2 bg-warning text-dark">
             {pendingUsers.length} Pending
@@ -363,7 +371,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                     <th className="py-3 px-3">School ID</th>
                     <th className="py-3">Name</th>
                     <th className="py-3">Role</th>
-                    <th className="py-3">Department / Specialization</th>
+                    <th className="py-3">Department</th>
                     <th className="py-3">Registered</th>
                     <th className="py-3 text-end">Action</th>
                   </tr>
@@ -408,7 +416,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <span className="text-muted small">
             {currentTab === 'dashboard'
               ? 'Overview of registered members, active loans, and staff reports'
-              : 'Search and review records for this section'}
+              : currentTab === 'admin-staff'}
           </span>
         </div>
       </div>
@@ -435,7 +443,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               <i className="bi bi-person-badge"></i>
             </div>
             <div className="stat-label">Coaches Registered</div>
-            <div className="stat-trend" style={{ color: '#6366F1' }}>Varsity Head & Asst</div>
+            <div className="stat-trend" style={{ color: '#287B9C' }}>Varsity Head & Asst</div>
             <h3 className="stat-value text-dark">{coachCount}</h3>
           </div>
         </div>
@@ -491,7 +499,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <h5 className="fw-bold mb-0 text-dark">
               {pageRole ? pageTitle : 'Registered Institutional Members'}
             </h5>
-            <small className="text-muted">Verified School IDs and active campus status</small>
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -533,7 +540,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <th className="py-3 px-3">School ID</th>
                 <th className="py-3">Member Name</th>
                 <th className="py-3">Role</th>
-                <th className="py-3">Department / Specialization</th>
+                <th className="py-3">Department</th>
                 <th className="py-3">Status</th>
                 <th className="py-3">Current Activity</th>
                 {pageRole && <th className="py-3 text-end">Actions</th>}
@@ -814,7 +821,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Active Borrowing Activity</h5>
-              <small className="text-muted">Currently borrowed or overdue equipment</small>
             </div>
             <span className="badge bg-primary rounded-pill px-3 py-1">{filteredLoans.length} Active Records</span>
           </div>
@@ -865,7 +871,6 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Staff Incident Reports</h5>
-              <small className="text-muted">Broken equipment and overdue violations filed by staff</small>
             </div>
             <span className="badge bg-danger rounded-pill px-2 py-1">
               {reports.filter(report => report.status === 'submitted').length} Pending

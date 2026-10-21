@@ -287,7 +287,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="fw-bold mb-1 text-dark">Staff Operations Desk</h4>
-          <span className="text-muted small">Manage inventory CRUD, loans, available days, alerts, and admin reports</span>
         </div>
 
         <div className="d-flex align-items-center gap-2">
@@ -325,7 +324,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
           <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Equipment Inventory Management</h5>
-              <small className="text-muted">Available days, condition inspection, and stock levels</small>
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -456,7 +454,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <h5 className="fw-bold mb-0 text-dark">Active Loans & Deadline Alerts</h5>
-                  <small className="text-muted">Send return alerts to students or coaches</small>
                 </div>
                 <button
                   type="button"
@@ -553,7 +550,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <div>
                   <h5 className="fw-bold mb-0 text-dark">Borrowers Directory</h5>
-                  <small className="text-muted">Presence & online status</small>
                 </div>
                 <span className="badge bg-secondary rounded-pill px-2 py-1">
                   {filteredBorrowers.length} Members
@@ -614,7 +610,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Student-to-Coach Bookings</h5>
-              <small className="text-muted">Manage varsity training appointments and coach schedules</small>
             </div>
             <span className="badge bg-info text-dark rounded-pill px-3 py-1">
               {filteredBookings.length} Bookings
@@ -694,7 +689,6 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Staff Incident Reports to Admin</h5>
-              <small className="text-muted">Report broken gear by student/coach or unreturned items</small>
             </div>
             <button
               type="button"

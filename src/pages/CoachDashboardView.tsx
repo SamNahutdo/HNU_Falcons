@@ -119,26 +119,6 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h4 className="fw-bold mb-1 text-dark">Coach Coaching & Training Hub</h4>
-          <span className="text-muted small">Manage student training bookings, schedule, and team gear borrowings</span>
-        </div>
-
-        <div className="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onNavigate && onNavigate('bookings')}
-            className="btn btn-sm btn-dark"
-            style={{ borderRadius: '10px', fontWeight: 700 }}
-          >
-            <i className="bi bi-calendar2-check me-1"></i> Student Requests ({pendingBookings.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => onNavigate && onNavigate('borrowing')}
-            className="btn btn-sm text-white"
-            style={{ background: 'var(--coral)', borderRadius: '10px', fontWeight: 700 }}
-          >
-            <i className="bi bi-box-arrow-in-down me-1"></i> Borrow Equipment
-          </button>
         </div>
       </div>
 
@@ -290,7 +270,6 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
           <div className="d-flex justify-content-between align-items-center mb-3">
             <div>
               <h5 className="fw-bold mb-0 text-dark">Student Training Booking Requests</h5>
-              <small className="text-muted">Review, approve, or decline student coaching appointments</small>
             </div>
             <span className="badge bg-dark rounded-pill px-3 py-1">
               {filteredBookings.length} Total Bookings

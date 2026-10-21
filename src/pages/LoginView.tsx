@@ -161,7 +161,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
         <h2 style={{
           fontSize: '1.4rem',
           fontWeight: 800,
-          color: 'var(--sidebar-bg)',
+          color: 'var(--coral)',
           textAlign: 'center',
           letterSpacing: '-0.3px',
           margin: '0.25rem 0 1.25rem'
@@ -190,7 +190,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
                 fontWeight: 700,
                 fontSize: '0.82rem',
                 border: 'none',
-                boxShadow: activeMode === 'login' ? '0 2px 8px rgba(255, 111, 89, 0.3)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -206,7 +205,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
                 fontWeight: 700,
                 fontSize: '0.82rem',
                 border: 'none',
-                boxShadow: activeMode === 'register' ? '0 2px 8px rgba(255, 111, 89, 0.3)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >

@@ -55,14 +55,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* LOGGED IN USER PILL */}
-        <div className="px-3 py-2 mb-2">
-          <div className="p-2 rounded-3" style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div className="text-white fw-bold small text-truncate">{userDisplayName}</div>
+        <div className="sidebar-user-wrap">
+          <div className="sidebar-user-card">
+            <div className="sidebar-user-name">{userDisplayName}</div>
             <div className="d-flex justify-content-between align-items-center mt-1">
-              <span className="badge rounded-pill text-capitalize" style={{ background: 'var(--coral)', fontSize: '0.68rem', padding: '0.2rem 0.5rem' }}>
+              <span className="badge rounded-pill text-capitalize sidebar-user-role">
                 {currentRole}
               </span>
-              <small className="text-muted" style={{ fontSize: '0.7rem' }}>@{username}</small>
+              <small className="sidebar-user-handle">@{username}</small>
             </div>
           </div>
         </div>
@@ -271,9 +271,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           aria-describedby="logout-confirmation-description"
           onClick={event => event.stopPropagation()}
         >
-          <div className="logout-confirmation-icon">
-            <i className="bi bi-box-arrow-right"></i>
-          </div>
           <h2 id="logout-confirmation-title">Log out?</h2>
           <p id="logout-confirmation-description">Are you sure you want to log out of your account?</p>
           <div className="logout-confirmation-actions">

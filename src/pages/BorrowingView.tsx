@@ -140,7 +140,6 @@ export const BorrowingView: React.FC<BorrowingViewProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: 'var(--coral-shadow)',
               cursor: 'pointer',
               transition: 'all 0.2s ease'
             }}
@@ -334,7 +333,6 @@ export const BorrowingView: React.FC<BorrowingViewProps> = ({
                               borderRadius: '12px',
                               border: '1px solid #E2E8F0',
                               overflow: 'hidden',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
                             }}>
                               <table className="table-modern" style={{ fontSize: '0.82rem' }}>
                                 <thead>

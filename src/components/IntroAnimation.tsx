@@ -15,9 +15,7 @@ interface IntroAnimationProps {
 export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
   const containerRef  = useRef<HTMLDivElement>(null);
   const screenRef     = useRef<HTMLDivElement>(null);
-  const imageRef      = useRef<HTMLImageElement>(null);
   const [hasStarted, setHasStarted] = useState(false);
-  const [showBurst, setShowBurst] = useState(false);
 
   useEffect(() => {
     preloadEagleSound();
@@ -31,39 +29,28 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
     el.style.transition = 'none';
     el.style.transform  = 'translateY(80vh) scale(0.35)';
     el.style.opacity    = '0.2';
-    el.style.filter     = 'drop-shadow(0 15px 35px rgba(0,0,0,0.6)) drop-shadow(0 0 25px rgba(255,111,89,0.45))';
     void el.offsetHeight;
 
     // ── STAGE 1: RISE (0 → 1200ms) ───────────────────────────────────────
     el.style.transition = [
       'transform 1.2s cubic-bezier(0.18, 0.89, 0.32, 1.15)',
       'opacity   1.0s ease',
-      'filter    1.0s ease',
     ].join(', ');
     el.style.transform = 'translateY(0) scale(1.4)';
     el.style.opacity   = '1';
 
-    // ── STAGE 2: SCREECH (sound 200ms before the red burst) ───────────────
+    // ── STAGE 2: SCREECH ─────────────────────────────────────────────────
     const t1 = setTimeout(() => {
       void playEagleSound();
     }, 1000);
 
-    const t1Burst = setTimeout(() => {
-      setShowBurst(true);
-      imageRef.current?.classList.add('vibrating');
-    }, 1200);
-
     // ── STAGE 3: MORPH (2200ms) ───────────────────────────────────────────
     const t2 = setTimeout(() => {
-      setShowBurst(false);
-      imageRef.current?.classList.remove('vibrating');
       el.style.transition = [
         'transform 1.1s cubic-bezier(0.22, 1, 0.36, 1)',
         'opacity   1.1s ease',
-        'filter    1.1s ease',
       ].join(', ');
       el.style.transform = 'translateY(-231px) scale(0.45)';
-      el.style.filter    = 'drop-shadow(0 6px 14px rgba(0,0,0,0.15))';
     }, 2200);
 
     // ── STAGE 4: DONE (3500ms) ────────────────────────────────────────────
@@ -78,7 +65,6 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
 
     return () => {
       clearTimeout(t1);
-      clearTimeout(t1Burst);
       clearTimeout(t2);
       clearTimeout(t3);
     };
@@ -98,15 +84,12 @@ export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) =>
       onClick={handleScreenClick}
       style={{ cursor: hasStarted ? 'default' : 'pointer' }}
     >
-      <div className="intro-radial-glow" />
       <div ref={containerRef} className="intro-logo-container">
         <img
-          ref={imageRef}
           src={`${import.meta.env.BASE_URL}images/Logo.png`}
           alt="Falcon Logo"
           className="intro-logo-image"
         />
-        {showBurst && <div className="intro-screech-burst" />}
       </div>
       {!hasStarted && (
         <button

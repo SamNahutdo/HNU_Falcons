@@ -183,7 +183,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                     background: isSelected ? '#FFF5F3' : '#FFFFFF',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
-                    boxShadow: isSelected ? '0 4px 12px rgba(255, 111, 89, 0.15)' : 'none'
                   }}
                 >
                   <div style={{
@@ -247,7 +246,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '7px',
-                boxShadow: 'var(--coral-shadow)',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease'
               }}
@@ -277,7 +275,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#FFFFFF',
-                boxShadow: '0 4px 10px rgba(255, 111, 89, 0.3)'
               }}>
                 <Award size={20} />
               </div>
@@ -386,7 +383,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
             borderRadius: '24px',
             maxWidth: '500px',
             width: '100%',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
             border: '1px solid #E2E8F0',
             overflow: 'hidden'
           }} onClick={(e) => e.stopPropagation()}>
@@ -487,7 +483,6 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                     background: 'var(--coral-gradient)',
                     color: '#FFFFFF',
                     fontWeight: 700,
-                    boxShadow: 'var(--coral-shadow)',
                     cursor: 'pointer'
                   }}
                 >
