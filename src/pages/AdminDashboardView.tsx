@@ -558,11 +558,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   // Find what they are doing (borrowing or coach booking)
                   const activeLoan = transactions.find(
                     t => (t.borrower_school_id === user.school_id || t.borrower_name === user.full_name) &&
-                         (t.status === 'active' || t.status === 'overdue')
+                        (t.status === 'active' || t.status === 'overdue')
                   );
                   const activeBooking = bookings.find(
                     b => (b.student_school_id === user.school_id || b.coach_school_id === user.school_id) &&
-                         (b.status === 'pending' || b.status === 'approved')
+                        (b.status === 'pending' || b.status === 'approved')
                   );
 
                   return (

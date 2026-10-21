@@ -6,6 +6,12 @@
 let audioCtx: AudioContext | null = null;
 let audioBufferPromise: Promise<AudioBuffer | null> | null = null;
 
+export interface EagleSoundCallbacks {
+  onStart?: () => void;
+  onLevel?: (level: number) => void;
+  onEnded?: () => void;
+}
+
 // ─── AudioContext helper ──────────────────────────────────────────────────────
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
@@ -54,31 +60,66 @@ export function unlockEagleSound(): void {
 // ─── Play ─────────────────────────────────────────────────────────────────────
 // Awaits the preloaded buffer then plays instantly with no network delay.
 // Falls back to a synthesized screech if the file couldn't be loaded.
-export async function playEagleSound(): Promise<void> {
+export async function playEagleSound(callbacks: EagleSoundCallbacks = {}): Promise<void> {
   // Ensure AudioContext is running (may be suspended on first load)
   const ctx = getAudioContext();
   try {
     await ctx.resume();
-  } catch {
-    // ignore
+  } catch (err) {
+    console.warn('Eagle audio context could not resume:', err);
   }
 
   // Wait for preloaded buffer (should already be resolved by 1200ms)
   const buffer = audioBufferPromise ? await audioBufferPromise : null;
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.72;
+  analyser.connect(ctx.destination);
 
   if (buffer) {
     const source = ctx.createBufferSource();
     source.buffer = buffer;
-    source.connect(ctx.destination);
+    source.connect(analyser);
+    const stopMeter = watchAudioLevel(analyser, callbacks);
+    source.onended = () => {
+      stopMeter();
+      callbacks.onLevel?.(0);
+      callbacks.onEnded?.();
+    };
     source.start(0);
+    callbacks.onStart?.();
   } else {
     // File not available — use synthesized screech
-    playSynthesizedEagleSound(ctx);
+    playSynthesizedEagleSound(ctx, analyser, callbacks);
   }
 }
 
+function watchAudioLevel(
+  analyser: AnalyserNode,
+  callbacks: EagleSoundCallbacks
+): () => void {
+  const samples = new Uint8Array(analyser.fftSize);
+  let frameId = 0;
+  const updateLevel = () => {
+    analyser.getByteTimeDomainData(samples);
+    const rms = Math.sqrt(samples.reduce((sum, sample) => {
+      const amplitude = (sample - 128) / 128;
+      return sum + amplitude * amplitude;
+    }, 0) / samples.length);
+    callbacks.onLevel?.(Math.min(1, rms * 4.5));
+    frameId = requestAnimationFrame(updateLevel);
+  };
+
+  updateLevel();
+  return () => cancelAnimationFrame(frameId);
+}
+
 // ─── Synthesized fallback ─────────────────────────────────────────────────────
-function playSynthesizedEagleSound(ctx: AudioContext): void {
+function playSynthesizedEagleSound(
+  ctx: AudioContext,
+  analyser: AnalyserNode,
+  callbacks: EagleSoundCallbacks
+): void {
   try {
     const now = ctx.currentTime;
 
@@ -87,7 +128,7 @@ function playSynthesizedEagleSound(ctx: AudioContext): void {
     masterGain.gain.exponentialRampToValueAtTime(0.4, now + 0.08);
     masterGain.gain.linearRampToValueAtTime(0.35, now + 0.35);
     masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
-    masterGain.connect(ctx.destination);
+    masterGain.connect(analyser);
 
     const osc1 = ctx.createOscillator();
     osc1.type = 'sawtooth';
@@ -156,7 +197,15 @@ function playSynthesizedEagleSound(ctx: AudioContext): void {
     oscEcho.start(echoTime);
     lfo.stop(now + 1.35); osc1.stop(now + 1.35); osc2.stop(now + 1.35);
     noise.stop(now + 1.35); oscEcho.stop(echoTime + 0.6);
+    const stopMeter = watchAudioLevel(analyser, callbacks);
+    oscEcho.onended = () => {
+      stopMeter();
+      callbacks.onLevel?.(0);
+      callbacks.onEnded?.();
+    };
+    callbacks.onStart?.();
   } catch (err) {
     console.warn('Synthesized audio error:', err);
+    callbacks.onEnded?.();
   }
 }

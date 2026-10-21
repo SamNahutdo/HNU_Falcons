@@ -965,14 +965,14 @@ body {
 }
 
 /* ==========================================================================
-   INTRO ANIMATION  — transforms driven by JS inline styles (no class-switch teleport)
+   INTRO ANIMATION
    ========================================================================== */
 .intro-animation-screen {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: radial-gradient(circle at center, #1E2858 0%, #0D132E 60%, #070A1A 100%);
+  background: linear-gradient(145deg, #111B2B 0%, #182B3B 54%, #101925 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -980,17 +980,174 @@ body {
   overflow: hidden;
 }
 
-/* Coral radial glow — pure CSS animation, no conflict */
-/* Logo container — transforms set entirely via JS inline styles */
+.intro-circle-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(82vmin, 390px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.intro-circle {
+  position: absolute;
+  display: block;
+  border: 1px solid;
+  border-radius: 50%;
+}
+
+.intro-circle-outer {
+  inset: 0;
+  border-color: rgba(105, 202, 232, 0.48);
+  border-style: dashed;
+  animation: intro-circle-rotate 34s linear infinite;
+  scale: calc(1 + var(--audio-level, 0) * 0.32);
+  opacity: calc(0.62 + var(--audio-level, 0) * 0.38);
+}
+
+.intro-circle-middle {
+  inset: 12%;
+  border-color: rgba(75, 193, 131, 0.58);
+  border-right-color: transparent;
+  border-bottom-color: rgba(75, 193, 131, 0.25);
+  animation: intro-circle-rotate 22s linear infinite reverse;
+  scale: calc(1 + var(--audio-level, 0) * 0.48);
+  opacity: calc(0.68 + var(--audio-level, 0) * 0.32);
+}
+
+.intro-circle-inner {
+  inset: 26%;
+  border-color: rgba(255, 211, 83, 0.62);
+  border-top-color: transparent;
+  animation: intro-circle-rotate 16s linear infinite;
+  scale: calc(1 + var(--audio-level, 0) * 0.62);
+  opacity: calc(0.72 + var(--audio-level, 0) * 0.28);
+}
+
+.intro-circle-core {
+  inset: 41%;
+  border-color: rgba(255, 255, 255, 0.22);
+  scale: calc(1 + var(--audio-level, 0) * 0.9);
+}
+
+.intro-circle-outer::before,
+.intro-circle-middle::before,
+.intro-circle-inner::before {
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  content: "";
+}
+
+.intro-circle-outer::before {
+  background: #69CAE8;
+}
+
+.intro-circle-middle::before {
+  background: #4BC183;
+}
+
+.intro-circle-inner::before {
+  background: #FFD353;
+}
+
+.intro-ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 2px solid;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.25);
+  animation: intro-circle-ripple 1.9s ease-out infinite;
+}
+
+.intro-ripple-green {
+  border-color: #4BC183;
+}
+
+.intro-ripple-yellow {
+  border-color: #FFD353;
+  animation-delay: 620ms;
+}
+
+.intro-ripple-blue {
+  border-color: #69CAE8;
+  animation-delay: 1240ms;
+}
+
+@keyframes intro-circle-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes intro-circle-ripple {
+  0% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(0.25);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.8);
+  }
+}
+
+/* Logo container — the final transform is measured against the login mark. */
 .intro-logo-container {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
-  opacity: 0.2;
-  transform: translateY(80vh) scale(0.35);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0.9;
+  transform: perspective(900px) translateZ(0) scale(0.74);
   will-change: transform, opacity, filter;
+  cursor: pointer;
+  transition: transform 350ms cubic-bezier(0.18, 0.8, 0.25, 1), opacity 350ms ease;
+}
+
+.intro-logo-container:focus-visible {
+  outline: 2px solid #FFFFFF;
+  outline-offset: 10px;
+}
+
+.intro-logo-container:disabled {
+  cursor: default;
+}
+
+.intro-animation-screen.is-zoom-in .intro-logo-container {
+  transform: perspective(900px) translateZ(90px) scale(1.15) rotateY(-5deg);
+}
+
+.intro-animation-screen.is-zoom-out .intro-logo-container,
+.intro-animation-screen.is-sound .intro-logo-container {
+  transform: perspective(900px) translateZ(0) scale(0.95) rotateY(0);
+}
+
+.intro-animation-screen.is-morphing .intro-circle-overlay,
+.intro-animation-screen.is-morphing .intro-tap-prompt {
+  opacity: 0;
+  transition: opacity 800ms ease;
+}
+
+.intro-animation-screen.is-morphing .intro-logo-container {
+  z-index: 100001;
+}
+
+.intro-animation-screen.is-finish {
+  pointer-events: none;
 }
 
 .intro-tap-prompt {
@@ -1004,12 +1161,32 @@ body {
   font: inherit;
   font-size: 1rem;
   letter-spacing: 0.08em;
-  opacity: 0.2;
+  opacity: 0.82;
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-circle-outer,
+  .intro-circle-middle,
+  .intro-circle-inner,
+  .intro-ripple {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+
+  .intro-circle-overlay {
+    transition: none;
+  }
+
+  .intro-logo-container {
+    transition-duration: 0.01ms;
+  }
 }
 
 /* Logo image base */
 .intro-logo-image {
+  position: relative;
+  z-index: 1;
   max-width: 320px;
   max-height: 200px;
   width: auto;

@@ -6,101 +6,117 @@ interface IntroAnimationProps {
 }
 
 /**
- * Intro animation waits for a user tap so browser audio can be unlocked.
+ * Intro animation waits for a user gesture so browser audio can be unlocked.
  *
  * WHY CLICK REQUIRED: Edge/Chrome block ALL audio until a user gesture.
  * This is a hard browser security rule with no code workaround.
- * The user taps to start the animation and unlock audio playback.
+ * The user activates the logo to start the animation and audio playback.
  */
 export const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
-  const containerRef  = useRef<HTMLDivElement>(null);
+  const containerRef  = useRef<HTMLButtonElement>(null);
   const screenRef     = useRef<HTMLDivElement>(null);
-  const [hasStarted, setHasStarted] = useState(false);
+  const [phase, setPhase] = useState<'idle' | 'zoom-in' | 'zoom-out' | 'sound' | 'morph' | 'finish'>('idle');
 
   useEffect(() => {
     preloadEagleSound();
-    if (!hasStarted) return;
+  }, []);
 
-    const el     = containerRef.current;
-    const screen = screenRef.current;
-    if (!el || !screen) return;
+  useEffect(() => {
+    if (phase === 'zoom-in') {
+      const timer = window.setTimeout(() => setPhase('zoom-out'), 400);
+      return () => window.clearTimeout(timer);
+    }
 
-    // ── INITIAL STATE ─────────────────────────────────────────────────────
-    el.style.transition = 'none';
-    el.style.transform  = 'translateY(80vh) scale(0.35)';
-    el.style.opacity    = '0.2';
-    void el.offsetHeight;
+    if (phase === 'zoom-out') {
+      const timer = window.setTimeout(() => {
+        void playEagleSound({
+          onLevel: (level) => {
+            screenRef.current?.style.setProperty('--audio-level', level.toFixed(3));
+          }
+        });
+        setPhase('sound');
+      }, 250);
+      return () => window.clearTimeout(timer);
+    }
 
-    // ── STAGE 1: RISE (0 → 1200ms) ───────────────────────────────────────
-    el.style.transition = [
-      'transform 1.2s cubic-bezier(0.18, 0.89, 0.32, 1.15)',
-      'opacity   1.0s ease',
-    ].join(', ');
-    el.style.transform = 'translateY(0) scale(1.4)';
-    el.style.opacity   = '1';
+    if (phase === 'sound') {
+      const timer = window.setTimeout(() => setPhase('morph'), 450);
+      return () => window.clearTimeout(timer);
+    }
 
-    // ── STAGE 2: SCREECH ─────────────────────────────────────────────────
-    const t1 = setTimeout(() => {
-      void playEagleSound();
-    }, 1000);
+    if (phase === 'morph') {
+      const logo = containerRef.current;
+      const loginLogo = document.querySelector<HTMLImageElement>('.login-logo-wrap img');
+      const screen = screenRef.current;
+      if (!logo || !loginLogo || !screen) return;
 
-    // ── STAGE 3: MORPH (2200ms) ───────────────────────────────────────────
-    const t2 = setTimeout(() => {
-      el.style.transition = [
-        'transform 1.1s cubic-bezier(0.22, 1, 0.36, 1)',
-        'opacity   1.1s ease',
-      ].join(', ');
-      el.style.transform = 'translateY(-231px) scale(0.45)';
-    }, 2200);
+      const logoBounds = logo.getBoundingClientRect();
+      const targetBounds = loginLogo.getBoundingClientRect();
+      const x = targetBounds.left + targetBounds.width / 2 - (logoBounds.left + logoBounds.width / 2);
+      const y = targetBounds.top + targetBounds.height / 2 - (logoBounds.top + logoBounds.height / 2);
+      const scale = targetBounds.width / logo.offsetWidth;
+      logo.style.transition = 'transform 450ms cubic-bezier(0.2, 0.75, 0.25, 1), opacity 450ms ease';
+      logo.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+      screen.classList.add('is-morphing');
 
-    // ── STAGE 4: DONE (3500ms) ────────────────────────────────────────────
-    const t3 = setTimeout(() => {
-      el.style.transition = 'opacity 0.5s ease';
-      el.style.opacity    = '0';
-      screen.style.transition = 'opacity 0.7s ease, visibility 0.7s ease';
-      screen.style.opacity    = '0';
-      screen.style.visibility = 'hidden';
-      setTimeout(onComplete, 200);
-    }, 3500);
+      const timer = window.setTimeout(() => {
+        setPhase('finish');
+        screen.style.transition = 'opacity 250ms ease, visibility 250ms ease';
+        screen.style.opacity = '0';
+        screen.style.visibility = 'hidden';
+        window.setTimeout(onComplete, 250);
+      }, 500);
 
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [hasStarted, onComplete]);
+      return () => window.clearTimeout(timer);
+    }
+  }, [phase, onComplete]);
 
-  // Tapping starts the animation and resumes audio from within the user gesture.
-  const handleScreenClick = () => {
-    if (hasStarted) return;
+  // Resume audio in the user gesture, then play after the zoom-in/out sequence.
+  const handleStart = () => {
+    if (phase !== 'idle') return;
     unlockEagleSound();
-    setHasStarted(true);
+    setPhase('zoom-in');
   };
 
   return (
     <div
       ref={screenRef}
-      className="intro-animation-screen"
-      onClick={handleScreenClick}
-      style={{ cursor: hasStarted ? 'default' : 'pointer' }}
+      className={`intro-animation-screen ${phase !== 'idle' ? 'is-active' : ''} ${phase === 'morph' ? 'is-morphing' : phase !== 'idle' ? `is-${phase}` : ''}`}
     >
-      <div ref={containerRef} className="intro-logo-container">
+      <button
+        type="button"
+        ref={containerRef}
+        className="intro-logo-container"
+        onClick={handleStart}
+        aria-label="Play Falcon intro"
+        disabled={phase !== 'idle'}
+      >
+        <span className="intro-circle-overlay" aria-hidden="true">
+          <span className="intro-circle intro-circle-outer" />
+          <span className="intro-circle intro-circle-middle" />
+          <span className="intro-circle intro-circle-inner" />
+          <span className="intro-circle intro-circle-core" />
+          {phase === 'sound' && (
+            <>
+              <span className="intro-ripple intro-ripple-green" />
+              <span className="intro-ripple intro-ripple-yellow" />
+              <span className="intro-ripple intro-ripple-blue" />
+            </>
+          )}
+        </span>
         <img
           src={`${import.meta.env.BASE_URL}images/Logo.png`}
-          alt="Falcon Logo"
+          alt=""
           className="intro-logo-image"
         />
-      </div>
-      {!hasStarted && (
+      </button>
+      {phase === 'idle' && (
         <button
           type="button"
           className="intro-tap-prompt"
-          onClick={(event) => {
-            event.stopPropagation();
-            handleScreenClick();
-          }}
+          onClick={handleStart}
         >
-          Tap to continue
+          Tap the logo to continue
         </button>
       )}
     </div>
