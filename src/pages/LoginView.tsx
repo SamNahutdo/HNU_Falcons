@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole } from '../types/database';
-import { authService } from '../services/supabase';
+import { authService, getSupabaseCredentials } from '../services/supabase';
 import { createClient } from '@supabase/supabase-js';
 
 interface LoginViewProps {
@@ -8,10 +8,10 @@ interface LoginViewProps {
   loggedOutNotice?: boolean;
 }
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL ?? '',
-  import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
-);
+const supabaseCredentials = getSupabaseCredentials();
+const supabase = supabaseCredentials.isLiveConfigured
+  ? createClient(supabaseCredentials.url, supabaseCredentials.anonKey)
+  : null;
 
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice = false }) => {
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
@@ -76,6 +76,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
     }
 
     try {
+      if (!supabase) {
+        throw new Error('Registration is unavailable because Supabase is not configured.');
+      }
+
       // 1. Create Supabase Auth account
       const { data, error } = await supabase.auth.signUp({
         email: regEmail.trim(),
