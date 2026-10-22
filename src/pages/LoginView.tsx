@@ -1,163 +1,131 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole } from '../types/database';
-import { mockDb } from '../services/mockData';
-
-interface QuickAccount {
-  id: string;
-  role: UserRole;
-  displayName: string;
-  username: string;
-  schoolId: string;
-  password?: string;
-}
+import { authService } from '../services/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 interface LoginViewProps {
   onLogin: (role: UserRole, userDisplayName: string, username: string, schoolId?: string) => void;
   loggedOutNotice?: boolean;
 }
 
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL ?? '',
+  import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
+);
+
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice = false }) => {
   const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
 
-  // Login form state
-  const [usernameOrId, setUsernameOrId] = useState('');
+  // Login form
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [showNotice, setShowNotice] = useState(loggedOutNotice);
-  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Register form state
-  const [regSchoolId, setRegSchoolId] = useState('');
-  const [regFullName, setRegFullName] = useState('');
-  const [regUsername, setRegUsername] = useState('');
+  // Register form
+  const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('student');
-  const [regDepartment, setRegDepartment] = useState('');
+  const [regFullName, setRegFullName] = useState('');
 
-  // Quick accounts list populated from mockDb
-  const [quickAccounts, setQuickAccounts] = useState<QuickAccount[]>([]);
-
-  const loadAccounts = () => {
-    const registered = mockDb.getRegisteredUsers();
-    const mapped: QuickAccount[] = registered.slice(0, 5).map(u => ({
-      id: u.id,
-      role: u.role,
-      displayName: u.full_name,
-      username: u.username,
-      schoolId: u.school_id,
-      password: u.password || 'password123'
-    }));
-    setQuickAccounts(mapped);
-  };
-
+  // Dismiss logged-out notice after 4 seconds
   useEffect(() => {
-    loadAccounts();
-    const unsubscribe = mockDb.subscribe(() => {
-      loadAccounts();
-    });
-    return unsubscribe;
-  }, []);
+    if (loggedOutNotice) {
+      const t = setTimeout(() => setShowNotice(false), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [loggedOutNotice]);
 
-  const handleQuickPaste = (acc: QuickAccount) => {
-    setUsernameOrId(acc.username);
-    setPassword(acc.password || 'password123');
-    setSelectedRole(acc.role);
-    setActiveMode('login');
-    setNoticeMessage(`Loaded ${acc.displayName} (${acc.role.toUpperCase()})`);
-    setShowNotice(false);
-    setErrorMessage(null);
-
-    setTimeout(() => {
-      setNoticeMessage(null);
-    }, 3500);
-  };
-
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  // ── LOGIN ──────────────────────────────────────────────────────────────────
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
-    const identifier = usernameOrId.trim();
-    if (!identifier) {
-      setErrorMessage('Please enter your Username or School ID.');
-      return;
+    setLoading(true);
+
+    try {
+      const profile = await authService.signIn(email.trim(), password);
+      onLogin(
+        profile.role as UserRole,
+        profile.fullName,
+        email.trim(),
+        profile.schoolId ?? undefined
+      );
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Login failed. Check your credentials.');
+    } finally {
+      setLoading(false);
     }
-
-    const registered = mockDb.getRegisteredUsers();
-    // Match by username or school_id (case insensitive)
-    const match = registered.find(
-      u => u.username.toLowerCase() === identifier.toLowerCase() ||
-           u.school_id.toUpperCase() === identifier.toUpperCase()
-    );
-
-    if (!match || match.password !== password) {
-      setErrorMessage('The username, school ID, or password is incorrect.');
-      return;
-    }
-
-    if (!match.is_verified) {
-      setErrorMessage('Your account is waiting for admin verification. Please try again after it has been approved.');
-      return;
-    }
-
-    onLogin(match.role, match.full_name, match.username, match.school_id);
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  // ── REGISTER (creates Supabase Auth account + inserts users row) ───────────
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setLoading(true);
 
-    // Explicit validation: School ID is strictly required!
-    if (!regSchoolId.trim()) {
-      setErrorMessage('School ID is required to register into the system.');
+    if (!regEmail.trim() || !regPassword.trim() || !regFullName.trim()) {
+      setErrorMessage('All fields are required.');
+      setLoading(false);
       return;
     }
-    if (!/^\d{7,15}$/.test(regSchoolId.trim())) {
-      setErrorMessage('School ID must contain 7 to 15 digits only.');
-      return;
-    }
-    if (!regFullName.trim() || !regUsername.trim()) {
-      setErrorMessage('Full Name and Username are required.');
+    if (regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      setLoading(false);
       return;
     }
 
     try {
-      const newAcc = mockDb.registerUser({
-        school_id: regSchoolId.trim(),
-        full_name: regFullName.trim(),
-        username: regUsername.trim().toLowerCase(),
-        password: regPassword.trim() || 'password123',
-        role: regRole,
-        department: regDepartment.trim() || (regRole === 'student' ? 'Athletics Department' : 'Sports Operations')
+      // 1. Create Supabase Auth account
+      const { data, error } = await supabase.auth.signUp({
+        email: regEmail.trim(),
+        password: regPassword,
+        options: { data: { full_name: regFullName.trim() } }
       });
 
-      // Autofill login form
-      setUsernameOrId(newAcc.school_id);
-      setPassword(newAcc.password || 'password123');
-      setSelectedRole(newAcc.role);
-      setActiveMode('login');
-      setNoticeMessage(`Account created for ${newAcc.full_name} (${newAcc.school_id}). An admin must verify it before you can log in.`);
+      if (error) throw new Error(error.message);
+      if (!data.user) throw new Error('Sign-up failed. Please try again.');
 
-      // Reset form
-      setRegSchoolId('');
-      setRegFullName('');
-      setRegUsername('');
+      // 2. Insert into users table with student role (admin verifies afterward)
+      const { error: dbErr } = await supabase.from('users').insert({
+        user_auth_id : data.user.id,
+        email        : regEmail.trim(),
+        full_name    : regFullName.trim(),
+        role_id      : (await supabase.from('roles').select('id').eq('name', 'student').single()).data?.id,
+        status       : 'inactive'   // Admin must activate before first login
+      });
+
+      if (dbErr) {
+        // Cleanup orphaned auth account if DB insert fails
+        await supabase.auth.signOut();
+        throw new Error(`Profile creation failed: ${dbErr.message}`);
+      }
+
+      setSuccessMessage(
+        `Account created for ${regFullName.trim()}. Your account is pending admin approval. Contact your administrator to activate it.`
+      );
+      setActiveMode('login');
+      setEmail(regEmail.trim());
+      setRegEmail('');
       setRegPassword('');
-      setRegDepartment('');
+      setRegFullName('');
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-page-wrapper">
       <div className="login-card">
+
         {/* LOGO */}
         <div className="login-logo-wrap">
           <img src={`${import.meta.env.BASE_URL}images/Logo.png`} alt="Falcon Logo" />
         </div>
 
-        {/* LOG IN HEADER */}
+        {/* HEADER */}
         <h2 style={{
           fontSize: '1.4rem',
           fontWeight: 800,
@@ -171,71 +139,49 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
 
         {/* MODE TABS */}
         <div className="d-flex justify-content-center mb-3">
-          <div
-            style={{
-              background: '#F1F5F9',
-              borderRadius: '9999px',
-              padding: '4px',
-              display: 'inline-flex',
-              gap: '4px'
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => { setActiveMode('login'); setErrorMessage(null); }}
-              className="btn btn-sm rounded-pill px-4"
-              style={{
-                background: activeMode === 'login' ? 'var(--coral)' : 'transparent',
-                color: activeMode === 'login' ? '#FFFFFF' : '#475569',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                border: 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Log In
-            </button>
-            <button
-              type="button"
-              onClick={() => { setActiveMode('register'); setErrorMessage(null); }}
-              className="btn btn-sm rounded-pill px-3"
-              style={{
-                background: activeMode === 'register' ? 'var(--coral)' : 'transparent',
-                color: activeMode === 'register' ? '#FFFFFF' : '#475569',
-                fontWeight: 700,
-                fontSize: '0.82rem',
-                border: 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Register
-            </button>
+          <div style={{
+            background: '#F1F5F9', borderRadius: '9999px',
+            padding: '4px', display: 'inline-flex', gap: '4px'
+          }}>
+            {(['login', 'register'] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => { setActiveMode(m); setErrorMessage(null); setSuccessMessage(null); }}
+                className="btn btn-sm rounded-pill px-4"
+                style={{
+                  background: activeMode === m ? 'var(--coral)' : 'transparent',
+                  color: activeMode === m ? '#FFFFFF' : '#475569',
+                  fontWeight: 700, fontSize: '0.82rem',
+                  border: 'none', transition: 'all 0.15s ease',
+                  textTransform: 'capitalize'
+                }}
+              >
+                {m === 'login' ? 'Log In' : 'Register'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* LOGOUT ALERT */}
+        {/* LOGGED OUT NOTICE */}
         {showNotice && (
-          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3" style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.82rem', border: '1px solid #BBF7D0' }}>
+          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3"
+            style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.82rem', border: '1px solid #BBF7D0' }}>
             <span>Logged out successfully.</span>
-            <button
-              type="button"
-              onClick={() => setShowNotice(false)}
-              style={{ background: 'transparent', border: 'none', color: '#166534', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
-            >
+            <button type="button" onClick={() => setShowNotice(false)}
+              style={{ background: 'transparent', border: 'none', color: '#166534', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>
               &times;
             </button>
           </div>
         )}
 
-        {/* NOTICE TOAST */}
-        {noticeMessage && (
-          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3" style={{ background: '#EFF6FF', color: '#1E40AF', fontSize: '0.82rem', border: '1px solid #BFDBFE' }}>
-            <span>{noticeMessage}</span>
-            <button
-              type="button"
-              onClick={() => setNoticeMessage(null)}
-              style={{ background: 'transparent', border: 'none', color: '#1E40AF', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
-            >
+        {/* SUCCESS MESSAGE */}
+        {successMessage && (
+          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3"
+            style={{ background: '#DCFCE7', color: '#166534', fontSize: '0.82rem', border: '1px solid #BBF7D0' }}>
+            <span>{successMessage}</span>
+            <button type="button" onClick={() => setSuccessMessage(null)}
+              style={{ background: 'transparent', border: 'none', color: '#166534', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>
               &times;
             </button>
           </div>
@@ -243,68 +189,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
 
         {/* ERROR MESSAGE */}
         {errorMessage && (
-          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3" style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.82rem', border: '1px solid #FECACA' }}>
+          <div className="d-flex align-items-center justify-content-between py-2 px-3 mb-3 rounded-3"
+            style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '0.82rem', border: '1px solid #FECACA' }}>
             <span>{errorMessage}</span>
-            <button
-              type="button"
-              onClick={() => setErrorMessage(null)}
-              style={{ background: 'transparent', border: 'none', color: '#991B1B', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
-            >
+            <button type="button" onClick={() => setErrorMessage(null)}
+              style={{ background: 'transparent', border: 'none', color: '#991B1B', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>
               &times;
             </button>
           </div>
         )}
 
-        {/* 4 ROLES SELECTOR */}
-            <div className="mb-3">
-              <label className="form-label-custom">Role</label>
-              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                {(['admin', 'staff', 'coach', 'student'] as UserRole[]).map((r) => {
-                  const isSelected = selectedRole === r;
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setSelectedRole(r)}
-                      aria-pressed={isSelected}
-                      style={{
-                        background: isSelected ? 'var(--coral-gradient)' : '#F1F5F9',
-                        color: isSelected ? '#FFFFFF' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        borderRadius: '10px',
-                        padding: '0.5rem 0.2rem',
-                        border: isSelected ? '1px solid var(--coral)' : '1px solid transparent',
-                        cursor: 'pointer',
-                        textTransform: 'capitalize',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {r}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-        {/* LOG IN FORM */}
+        {/* ── LOGIN FORM ────────────────────────────────────────────────────── */}
         {activeMode === 'login' ? (
           <form onSubmit={handleLoginSubmit}>
+
             <div className="mb-3">
-              <label className="form-label-custom">Username</label>
+              <label className="form-label-custom">Email Address</label>
               <div className="input-group-custom">
-                <i className="bi bi-person"></i>
+                <i className="bi bi-envelope"></i>
                 <input
-                  type="text"
-                  placeholder="Username"
-                  value={usernameOrId}
-                  onChange={(e) => setUsernameOrId(e.target.value)}
+                  type="email"
+                  placeholder="yourname@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
 
-            <div className="mb-3">
+            <div className="mb-4">
               <label className="form-label-custom">Password</label>
               <div className="input-group-custom">
                 <i className="bi bi-lock"></i>
@@ -313,23 +227,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </div>
             </div>
 
-            
-
-            <div className="d-flex justify-content-between align-items-center mb-4" style={{ fontSize: '0.82rem' }}>
-              <label className="d-flex align-items-center gap-2 text-secondary mb-0" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{ accentColor: 'var(--coral)' }}
-                />
-                <span>Remember me</span>
-              </label>
+            <div className="d-flex justify-content-end mb-4" style={{ fontSize: '0.82rem' }}>
               <span
                 onClick={() => { setActiveMode('register'); setErrorMessage(null); }}
                 style={{ color: 'var(--coral)', cursor: 'pointer', fontWeight: 600 }}
@@ -338,34 +242,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
               </span>
             </div>
 
-            <button type="submit" className="btn-signin">
-              <span>ENTER PORTAL</span>
-              <i className="bi bi-arrow-right"></i>
+            <button type="submit" className="btn-signin" disabled={loading}>
+              <span>{loading ? 'Signing in…' : 'ENTER PORTAL'}</span>
+              {!loading && <i className="bi bi-arrow-right"></i>}
             </button>
           </form>
+
         ) : (
-          /* CREATE ACCOUNT FORM (REQUIRES SCHOOL ID) */
+          /* ── REGISTER FORM ──────────────────────────────────────────────── */
           <form onSubmit={handleRegisterSubmit}>
-            <div className="mb-3">
-              <label className="form-label-custom">
-                School ID <span style={{ color: 'var(--coral)' }}>*</span>
-              </label>
-              <div className="input-group-custom" style={{ borderColor: !regSchoolId ? '#CBD5E1' : 'var(--coral)' }}>
-                <i className="bi bi-person-badge"></i>
-                <input
-                  type="text"
-                  placeholder="Enter 7–15 digits"
-                  value={regSchoolId}
-                  onChange={(e) => setRegSchoolId(e.target.value)}
-                  inputMode="numeric"
-                  maxLength={15}
-                  required
-                />
-              </div>
-              <small className="text-muted" style={{ fontSize: '0.72rem' }}>
-                Use 7–15 digits only.
-              </small>
-            </div>
 
             <div className="mb-3">
               <label className="form-label-custom">Full Name <span style={{ color: 'var(--coral)' }}>*</span></label>
@@ -382,80 +267,48 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
             </div>
 
             <div className="mb-3">
-              <label className="form-label-custom">Username <span style={{ color: 'var(--coral)' }}>*</span></label>
+              <label className="form-label-custom">Email Address <span style={{ color: 'var(--coral)' }}>*</span></label>
               <div className="input-group-custom">
-                <i className="bi bi-at"></i>
+                <i className="bi bi-envelope"></i>
                 <input
-                  type="text"
-                  placeholder="Username"
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
+                  type="email"
+                  placeholder="yourname@example.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
 
-            <div className="mb-3">
+            <div className="mb-4">
               <label className="form-label-custom">Password <span style={{ color: 'var(--coral)' }}>*</span></label>
               <div className="input-group-custom">
                 <i className="bi bi-lock"></i>
                 <input
                   type="password"
-                  placeholder="Set password"
+                  placeholder="Min. 6 characters"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
+                  autoComplete="new-password"
                   required
                 />
               </div>
             </div>
 
-            {/* ROLE SELECTOR */}
-            <div className="mb-3">
-              <label className="form-label-custom">Register As</label>
-              <div className="d-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                {(['student', 'coach', 'staff'] as UserRole[]).map((r) => {
-                  const isSelected = regRole === r;
-                  return (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setRegRole(r)}
-                      style={{
-                        background: isSelected ? 'var(--sidebar-bg)' : '#F1F5F9',
-                        color: isSelected ? '#FFFFFF' : '#475569',
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        borderRadius: '10px',
-                        padding: '0.5rem 0.2rem',
-                        border: 'none',
-                        cursor: 'pointer',
-                        textTransform: 'capitalize',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {r}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* Info note */}
+            <div style={{
+              background: '#EFF6FF', border: '1px solid #BFDBFE',
+              borderRadius: '10px', padding: '0.6rem 0.85rem',
+              fontSize: '0.78rem', color: '#1E40AF', marginBottom: '1rem'
+            }}>
+              <i className="bi bi-info-circle me-1"></i>
+              New accounts are <strong>inactive</strong> until approved by an administrator.
             </div>
 
-            <div className="mb-4">
-              <label className="form-label-custom">Department or Specialization</label>
-              <div className="input-group-custom">
-                <i className="bi bi-building"></i>
-                <input
-                  type="text"
-                  placeholder={regRole === 'coach' ? 'e.g. Baseball & Pitching' : 'e.g. College of Computer Studies'}
-                  value={regDepartment}
-                  onChange={(e) => setRegDepartment(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button type="submit" className="btn-signin">
-              <span>REGISTER WITH SCHOOL ID</span>
-              <i className="bi bi-check2"></i>
+            <button type="submit" className="btn-signin" disabled={loading}>
+              <span>{loading ? 'Creating account…' : 'REGISTER ACCOUNT'}</span>
+              {!loading && <i className="bi bi-check2"></i>}
             </button>
 
             <div className="text-center mt-3">
@@ -471,42 +324,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin, loggedOutNotice =
           </form>
         )}
 
-        {/* QUICK LOGINS (Realistic accounts with School IDs) */}
-        <div className="demo-box mt-4">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <span className="fw-bold text-secondary" style={{ fontSize: '0.78rem' }}>
-              Select Active Account
-            </span>
-          </div>
-
-          <div className="d-flex flex-column gap-2">
-            {quickAccounts.map((acc) => (
-              <button
-                key={acc.id}
-                type="button"
-                onClick={() => handleQuickPaste(acc)}
-                className="btn btn-sm text-start d-flex justify-content-between align-items-center"
-                style={{
-                  background: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  padding: '0.55rem 0.85rem',
-                  fontSize: '0.82rem'
-                }}
-              >
-                <div>
-                  <span className="fw-bold text-dark">{acc.displayName}</span>
-                  <span className="text-muted ms-2" style={{ fontSize: '0.74rem', textTransform: 'capitalize' }}>
-                    ({acc.role})
-                  </span>
-                </div>
-                <span className="text-primary fw-semibold" style={{ fontSize: '0.74rem' }}>
-                  Select
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );

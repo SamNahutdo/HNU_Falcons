@@ -3,19 +3,21 @@
 -- Course Project: Advanced Database Systems (3rd-Year IT)
 -- Target DBMS: Supabase PostgreSQL (Cloud Database)
 -- Normalization: Strict 3rd Normal Form (3NF)
--- Security: Row Level Security (RLS) + RBAC (admin, staff, student)
+-- Security: Row Level Security (RLS) + RBAC (admin, staff, coach, student)
+--            enforced via auth.uid() and JWT app_metadata claims
 -- Server-Side Automation: PL/pgSQL Triggers, RPC Transactions, Views
+-- Backend API: Supabase Edge Functions (see supabase/functions/)
 -- ============================================================================
 
 -- 0. EXTENSIONS & CLEANUP
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Drop existing views if any
+-- Drop existing views
 DROP VIEW IF EXISTS vw_active_loans_summary CASCADE;
 DROP VIEW IF EXISTS vw_equipment_inventory_status CASCADE;
 
--- Drop existing tables if re-running migration (in reverse dependency order)
+-- Drop existing tables (reverse dependency order)
 DROP TABLE IF EXISTS audit_logs CASCADE;
 DROP TABLE IF EXISTS maintenance_records CASCADE;
 DROP TABLE IF EXISTS borrowing_items CASCADE;
@@ -33,7 +35,7 @@ DROP TABLE IF EXISTS roles CASCADE;
 -- 1. DDL: CORE ENTITIES & 3NF NORMALIZED RELATIONS
 -- ============================================================================
 
--- 1.1 ROLES TABLE (RBAC Definition: admin, staff, student)
+-- 1.1 ROLES TABLE (RBAC Definition: admin, staff, coach, student)
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(30) UNIQUE NOT NULL,
@@ -42,8 +44,10 @@ CREATE TABLE roles (
 );
 
 -- 1.2 USERS TABLE (System Identity & Credentials Anchor)
+--     user_auth_id links to Supabase auth.users(id) for RLS enforcement
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_auth_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL,
     school_id VARCHAR(15),
     email VARCHAR(255) UNIQUE NOT NULL,
     full_name VARCHAR(150) NOT NULL,
@@ -90,7 +94,7 @@ CREATE TABLE teams (
     sport_id UUID NOT NULL REFERENCES sports(id) ON DELETE RESTRICT,
     coach_id UUID NOT NULL REFERENCES coaches(id) ON DELETE RESTRICT,
     team_name VARCHAR(150) NOT NULL,
-    school_year VARCHAR(20) NOT NULL, -- e.g. '2025-2026'
+    school_year VARCHAR(20) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_team_sport_sy UNIQUE (sport_id, team_name, school_year)
@@ -172,6 +176,8 @@ CREATE TABLE audit_logs (
     old_data JSONB,
     new_data JSONB,
     performed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    performed_by_auth UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    ip_address INET,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -180,6 +186,7 @@ CREATE TABLE audit_logs (
 -- ============================================================================
 CREATE INDEX idx_users_role_id ON users(role_id);
 CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_auth_id ON users(user_auth_id);
 CREATE INDEX idx_athletes_student_number ON athletes(student_number);
 CREATE INDEX idx_athletes_user_id ON athletes(user_id);
 CREATE INDEX idx_teams_sport_id ON teams(sport_id);
@@ -200,39 +207,103 @@ CREATE INDEX idx_maintenance_equipment ON maintenance_records(equipment_id);
 CREATE INDEX idx_maintenance_status ON maintenance_records(status);
 CREATE INDEX idx_audit_logs_table_record ON audit_logs(table_name, record_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX idx_audit_logs_auth ON audit_logs(performed_by_auth);
 
 -- ============================================================================
 -- 3. SERVER-SIDE DATABASE PROGRAMMING: TRIGGERS & PROCEDURES (PL/pgSQL)
 -- ============================================================================
 
--- ----------------------------------------------------------------------------
--- 3.1 TRIGGER 1: trg_audit_equipment_changes
--- Automatically logs all INSERT, UPDATE, DELETE operations on the `equipment` table.
--- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION log_equipment_audit()
-RETURNS TRIGGER AS $$
+-- -----------------------------------------------------------------------
+-- HELPER: fn_get_caller_user_id()
+-- Returns the app-layer user id stored as a session setting, with
+-- safe fallback to the Supabase auth JWT subject mapped via users table.
+-- -----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_get_caller_user_id()
+RETURNS UUID AS $$
 DECLARE
     v_user_id UUID := NULL;
+    v_auth_uid UUID := NULL;
 BEGIN
-    -- Attempt to extract current user id from session context if available
+    -- 1. App layer can set app.current_user_id for service-key calls
     BEGIN
         v_user_id := NULLIF(current_setting('app.current_user_id', true), '')::UUID;
     EXCEPTION WHEN OTHERS THEN
         v_user_id := NULL;
     END;
 
+    -- 2. Fall back to mapping auth.uid() -> users.id
+    IF v_user_id IS NULL THEN
+        BEGIN
+            v_auth_uid := auth.uid();
+            IF v_auth_uid IS NOT NULL THEN
+                SELECT id INTO v_user_id FROM users WHERE user_auth_id = v_auth_uid LIMIT 1;
+            END IF;
+        EXCEPTION WHEN OTHERS THEN
+            v_user_id := NULL;
+        END;
+    END IF;
+
+    RETURN v_user_id;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- ----------------------------------------------------------------------------
+-- HELPER: fn_get_caller_role()
+-- Returns the role name of the currently authenticated user.
+-- Used in RLS policies.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_get_caller_role()
+RETURNS VARCHAR AS $$
+DECLARE
+    v_role VARCHAR;
+    v_auth_uid UUID;
+BEGIN
+    v_auth_uid := auth.uid();
+    IF v_auth_uid IS NULL THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT r.name INTO v_role
+    FROM users u
+    JOIN roles r ON u.role_id = r.id
+    WHERE u.user_auth_id = v_auth_uid
+    LIMIT 1;
+
+    RETURN v_role;
+EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- ----------------------------------------------------------------------------
+-- 3.1 TRIGGER 1: trg_audit_equipment_changes
+-- Automatically logs all INSERT, UPDATE, DELETE operations on `equipment`.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION log_equipment_audit()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_user_id UUID;
+    v_auth_uid UUID;
+BEGIN
+    v_user_id := fn_get_caller_user_id();
+    BEGIN
+        v_auth_uid := auth.uid();
+    EXCEPTION WHEN OTHERS THEN
+        v_auth_uid := NULL;
+    END;
+
     IF (TG_OP = 'INSERT') THEN
-        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by)
-        VALUES ('equipment', NEW.id, 'INSERT', NULL, to_jsonb(NEW), v_user_id);
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('equipment', NEW.id, 'INSERT', NULL, to_jsonb(NEW), v_user_id, v_auth_uid);
         RETURN NEW;
     ELSIF (TG_OP = 'UPDATE') THEN
         NEW.updated_at = NOW();
-        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by)
-        VALUES ('equipment', NEW.id, 'UPDATE', to_jsonb(OLD), to_jsonb(NEW), v_user_id);
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('equipment', NEW.id, 'UPDATE', to_jsonb(OLD), to_jsonb(NEW), v_user_id, v_auth_uid);
         RETURN NEW;
     ELSIF (TG_OP = 'DELETE') THEN
-        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by)
-        VALUES ('equipment', OLD.id, 'DELETE', to_jsonb(OLD), NULL, v_user_id);
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('equipment', OLD.id, 'DELETE', to_jsonb(OLD), NULL, v_user_id, v_auth_uid);
         RETURN OLD;
     END IF;
     RETURN NULL;
@@ -247,7 +318,7 @@ EXECUTE FUNCTION log_equipment_audit();
 
 -- ----------------------------------------------------------------------------
 -- 3.2 TRIGGER 2: trg_auto_update_stock_on_return
--- Automatically restores equipment.available_quantity when borrowing items are returned.
+-- Automatically restores equipment.available_quantity when items are returned.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_auto_update_stock_on_return()
 RETURNS TRIGGER AS $$
@@ -257,13 +328,11 @@ DECLARE
     v_total_qty INT;
     v_new_status VARCHAR(30);
 BEGIN
-    -- Check if returned_quantity has increased
     IF (TG_OP = 'UPDATE') THEN
         v_qty_delta := NEW.returned_quantity - OLD.returned_quantity;
 
         IF v_qty_delta > 0 THEN
-            -- Fetch current equipment totals
-            SELECT total_quantity, available_quantity 
+            SELECT total_quantity, available_quantity
             INTO v_total_qty, v_new_available
             FROM equipment
             WHERE id = NEW.equipment_id
@@ -271,12 +340,10 @@ BEGIN
 
             v_new_available := v_new_available + v_qty_delta;
 
-            -- Safety cap: cannot exceed total_quantity
             IF v_new_available > v_total_qty THEN
                 v_new_available := v_total_qty;
             END IF;
 
-            -- Derive status based on inventory thresholds
             IF v_new_available = 0 THEN
                 v_new_status := 'out_of_stock';
             ELSIF v_new_available <= 2 THEN
@@ -285,7 +352,6 @@ BEGIN
                 v_new_status := 'available';
             END IF;
 
-            -- Update equipment stock & status
             UPDATE equipment
             SET available_quantity = v_new_available,
                 status = v_new_status,
@@ -293,7 +359,6 @@ BEGIN
             WHERE id = NEW.equipment_id;
         END IF;
 
-        -- Automatically synchronize return_status flag
         IF NEW.returned_quantity >= NEW.quantity THEN
             NEW.return_status := 'returned';
         ELSIF NEW.returned_quantity > 0 AND NEW.returned_quantity < NEW.quantity THEN
@@ -312,8 +377,88 @@ FOR EACH ROW
 EXECUTE FUNCTION fn_auto_update_stock_on_return();
 
 -- ----------------------------------------------------------------------------
--- 3.3 STORED FUNCTION: fn_calculate_overdue_days
--- Computes overdue days dynamically based on expected vs actual return dates.
+-- 3.3 TRIGGER 3: trg_audit_borrowing_transaction_changes
+-- Audit trail for all borrowing_transactions mutations.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION log_borrowing_transaction_audit()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_user_id UUID;
+    v_auth_uid UUID;
+BEGIN
+    v_user_id := fn_get_caller_user_id();
+    BEGIN
+        v_auth_uid := auth.uid();
+    EXCEPTION WHEN OTHERS THEN
+        v_auth_uid := NULL;
+    END;
+
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('borrowing_transactions', NEW.id, 'INSERT', NULL, to_jsonb(NEW), v_user_id, v_auth_uid);
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('borrowing_transactions', NEW.id, 'UPDATE', to_jsonb(OLD), to_jsonb(NEW), v_user_id, v_auth_uid);
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('borrowing_transactions', OLD.id, 'DELETE', to_jsonb(OLD), NULL, v_user_id, v_auth_uid);
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_audit_borrowing_transaction_changes ON borrowing_transactions;
+CREATE TRIGGER trg_audit_borrowing_transaction_changes
+AFTER INSERT OR UPDATE OR DELETE ON borrowing_transactions
+FOR EACH ROW
+EXECUTE FUNCTION log_borrowing_transaction_audit();
+
+-- ----------------------------------------------------------------------------
+-- 3.4 TRIGGER 4: trg_audit_maintenance_changes
+-- Audit trail for all maintenance_records mutations.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION log_maintenance_audit()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_user_id UUID;
+    v_auth_uid UUID;
+BEGIN
+    v_user_id := fn_get_caller_user_id();
+    BEGIN
+        v_auth_uid := auth.uid();
+    EXCEPTION WHEN OTHERS THEN
+        v_auth_uid := NULL;
+    END;
+
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('maintenance_records', NEW.id, 'INSERT', NULL, to_jsonb(NEW), v_user_id, v_auth_uid);
+        RETURN NEW;
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('maintenance_records', NEW.id, 'UPDATE', to_jsonb(OLD), to_jsonb(NEW), v_user_id, v_auth_uid);
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO audit_logs (table_name, record_id, action_type, old_data, new_data, performed_by, performed_by_auth)
+        VALUES ('maintenance_records', OLD.id, 'DELETE', to_jsonb(OLD), NULL, v_user_id, v_auth_uid);
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_audit_maintenance_changes ON maintenance_records;
+CREATE TRIGGER trg_audit_maintenance_changes
+AFTER INSERT OR UPDATE OR DELETE ON maintenance_records
+FOR EACH ROW
+EXECUTE FUNCTION log_maintenance_audit();
+
+-- ----------------------------------------------------------------------------
+-- 3.5 STORED FUNCTION: fn_calculate_overdue_days
+-- Computes overdue days dynamically.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION fn_calculate_overdue_days(
     p_expected_return_date DATE,
@@ -341,12 +486,12 @@ END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- ----------------------------------------------------------------------------
--- 3.4 STORED PROCEDURE / RPC: checkout_equipment (ACID Atomic Transaction)
+-- 3.6 STORED PROCEDURE / RPC: checkout_equipment (ACID Atomic Transaction)
 -- Verifies availability, locks stock rows, creates transaction & junction records.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION checkout_equipment(
     p_athlete_id UUID,
-    p_items JSONB,              -- Array of objects: [{"equipment_id": "...", "quantity": 2, "condition": "good"}]
+    p_items JSONB,
     p_expected_return DATE,
     p_approved_by UUID DEFAULT NULL,
     p_remarks TEXT DEFAULT NULL
@@ -359,24 +504,31 @@ DECLARE
     v_item_count INT;
     v_new_available INT;
     v_new_status VARCHAR(30);
+    v_caller_role VARCHAR;
 BEGIN
-    -- 1. Date Validation
+    -- 1. Authorization: only admin or staff may perform checkouts
+    v_caller_role := fn_get_caller_role();
+    IF v_caller_role NOT IN ('admin', 'staff') THEN
+        RAISE EXCEPTION 'AUTHORIZATION ERROR: Only admin or staff may perform equipment checkouts. Your role: %', COALESCE(v_caller_role, 'anonymous');
+    END IF;
+
+    -- 2. Date Validation
     IF p_expected_return < CURRENT_DATE THEN
         RAISE EXCEPTION 'Expected return date (%) cannot be in the past.', p_expected_return;
     END IF;
 
-    -- 2. Validate Athlete
+    -- 3. Validate Athlete
     IF NOT EXISTS (SELECT 1 FROM athletes WHERE id = p_athlete_id) THEN
         RAISE EXCEPTION 'Athlete ID (%) does not exist.', p_athlete_id;
     END IF;
 
-    -- 3. Validate Items array
+    -- 4. Validate Items array
     v_item_count := jsonb_array_length(p_items);
     IF v_item_count = 0 THEN
         RAISE EXCEPTION 'Checkout request must contain at least one item.';
     END IF;
 
-    -- 4. Create Master Transaction Record
+    -- 5. Create Master Transaction Record
     INSERT INTO borrowing_transactions (
         athlete_id,
         approved_by,
@@ -393,7 +545,7 @@ BEGIN
     )
     RETURNING id INTO v_transaction_id;
 
-    -- 5. Process each item atomically with row-level locks
+    -- 6. Process each item atomically with row-level locks
     FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(
         equipment_id UUID,
         quantity INT,
@@ -431,7 +583,6 @@ BEGIN
             updated_at = NOW()
         WHERE id = v_item.equipment_id;
 
-        -- Insert Junction Record
         INSERT INTO borrowing_items (
             transaction_id,
             equipment_id,
@@ -450,7 +601,6 @@ BEGIN
         );
     END LOOP;
 
-    -- Return JSON payload to client
     RETURN jsonb_build_object(
         'success', true,
         'transaction_id', v_transaction_id,
@@ -461,12 +611,12 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ----------------------------------------------------------------------------
--- 3.5 STORED PROCEDURE / RPC: return_borrowed_items
+-- 3.7 STORED PROCEDURE / RPC: return_borrowed_items
 -- Safely records returns and triggers automatic stock replenishment.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION return_borrowed_items(
     p_transaction_id UUID,
-    p_items JSONB,              -- Array of [{"item_id": "...", "returned_quantity": 2, "condition_after": "good"}]
+    p_items JSONB,
     p_received_by UUID DEFAULT NULL
 )
 RETURNS JSONB AS $$
@@ -474,13 +624,18 @@ DECLARE
     v_item RECORD;
     v_unreturned_count INT;
     v_total_items INT;
+    v_caller_role VARCHAR;
 BEGIN
-    -- Verify transaction exists
+    -- Authorization: only admin or staff may process returns
+    v_caller_role := fn_get_caller_role();
+    IF v_caller_role NOT IN ('admin', 'staff') THEN
+        RAISE EXCEPTION 'AUTHORIZATION ERROR: Only admin or staff may process equipment returns. Your role: %', COALESCE(v_caller_role, 'anonymous');
+    END IF;
+
     IF NOT EXISTS (SELECT 1 FROM borrowing_transactions WHERE id = p_transaction_id) THEN
         RAISE EXCEPTION 'Borrowing transaction % not found.', p_transaction_id;
     END IF;
 
-    -- Update each item
     FOR v_item IN SELECT * FROM jsonb_to_recordset(p_items) AS x(
         item_id UUID,
         returned_quantity INT,
@@ -490,7 +645,7 @@ BEGIN
         UPDATE borrowing_items
         SET returned_quantity = v_item.returned_quantity,
             condition_after = COALESCE(v_item.condition_after, 'good'),
-            return_status = CASE 
+            return_status = CASE
                 WHEN v_item.returned_quantity >= quantity THEN 'returned'
                 WHEN v_item.returned_quantity > 0 THEN 'partial'
                 ELSE 'borrowed'
@@ -498,8 +653,7 @@ BEGIN
         WHERE id = v_item.item_id AND transaction_id = p_transaction_id;
     END LOOP;
 
-    -- Check if all items in this transaction are fully returned
-    SELECT 
+    SELECT
         COUNT(*) FILTER (WHERE returned_quantity < quantity),
         COUNT(*)
     INTO v_unreturned_count, v_total_items
@@ -534,7 +688,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 4.1 VIEW: Active & Overdue Loans Summary
 CREATE OR REPLACE VIEW vw_active_loans_summary AS
-SELECT 
+SELECT
     bt.id AS transaction_id,
     bt.borrow_date,
     bt.expected_return_date,
@@ -548,7 +702,7 @@ SELECT
     u.email AS athlete_email,
     staff.full_name AS approved_by_name,
     fn_calculate_overdue_days(bt.expected_return_date, bt.actual_return_date) AS overdue_days,
-    CASE 
+    CASE
         WHEN bt.status = 'returned' THEN 'Returned on Time'
         WHEN fn_calculate_overdue_days(bt.expected_return_date, bt.actual_return_date) > 0 THEN 'OVERDUE'
         ELSE 'Active / On Schedule'
@@ -562,14 +716,14 @@ JOIN athletes ath ON bt.athlete_id = ath.id
 JOIN users u ON ath.user_id = u.id
 LEFT JOIN users staff ON bt.approved_by = staff.id
 LEFT JOIN borrowing_items bi ON bt.id = bi.transaction_id
-GROUP BY 
+GROUP BY
     bt.id, bt.borrow_date, bt.expected_return_date, bt.actual_return_date,
     bt.status, bt.remarks, ath.id, ath.student_number, u.full_name,
     ath.department, u.email, staff.full_name;
 
 -- 4.2 VIEW: Real-time Equipment Inventory & Stock Health Status
 CREATE OR REPLACE VIEW vw_equipment_inventory_status AS
-SELECT 
+SELECT
     e.id AS equipment_id,
     e.equipment_code,
     e.name AS equipment_name,
@@ -581,7 +735,7 @@ SELECT
     ROUND(((e.total_quantity - e.available_quantity)::NUMERIC / NULLIF(e.total_quantity, 0)) * 100, 1) AS utilization_rate_pct,
     e.condition,
     e.status,
-    CASE 
+    CASE
         WHEN e.available_quantity = 0 THEN 'OUT_OF_STOCK'
         WHEN e.available_quantity <= 2 THEN 'LOW_STOCK_ALERT'
         WHEN e.condition IN ('needs_maintenance', 'damaged') THEN 'MAINTENANCE_REQUIRED'
@@ -596,6 +750,7 @@ GROUP BY e.id, e.equipment_code, e.name, e.category, s.name, e.total_quantity, e
 
 -- ============================================================================
 -- 5. ROW LEVEL SECURITY (RLS) POLICIES
+--    Enforced via auth.uid() + role lookup — NOT USING (true)
 -- ============================================================================
 ALTER TABLE roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -610,54 +765,173 @@ ALTER TABLE borrowing_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Transparent read access for public/authenticated frontend dashboard
--- (Admin, Staff, and Student views query through API)
-CREATE POLICY "Public read access on roles" ON roles FOR SELECT USING (true);
-CREATE POLICY "Public read access on users" ON users FOR SELECT USING (true);
-CREATE POLICY "Public read access on athletes" ON athletes FOR SELECT USING (true);
-CREATE POLICY "Public read access on coaches" ON coaches FOR SELECT USING (true);
-CREATE POLICY "Public read access on sports" ON sports FOR SELECT USING (true);
-CREATE POLICY "Public read access on teams" ON teams FOR SELECT USING (true);
-CREATE POLICY "Public read access on team_members" ON team_members FOR SELECT USING (true);
-CREATE POLICY "Public read access on equipment" ON equipment FOR SELECT USING (true);
-CREATE POLICY "Public read access on borrowing_transactions" ON borrowing_transactions FOR SELECT USING (true);
-CREATE POLICY "Public read access on borrowing_items" ON borrowing_items FOR SELECT USING (true);
-CREATE POLICY "Public read access on maintenance_records" ON maintenance_records FOR SELECT USING (true);
-CREATE POLICY "Public read access on audit_logs" ON audit_logs FOR SELECT USING (true);
+-- ---- ROLES (lookup table - any authenticated user can read) ----
+CREATE POLICY "Authenticated can read roles" ON roles
+    FOR SELECT USING (auth.uid() IS NOT NULL);
 
--- Mutations permissions for application execution
-CREATE POLICY "Allow all modifications on equipment for staff/admin" ON equipment FOR ALL USING (true);
-CREATE POLICY "Allow all modifications on borrowing_transactions" ON borrowing_transactions FOR ALL USING (true);
-CREATE POLICY "Allow all modifications on borrowing_items" ON borrowing_items FOR ALL USING (true);
-CREATE POLICY "Allow all modifications on maintenance_records" ON maintenance_records FOR ALL USING (true);
-CREATE POLICY "Allow inserts on audit_logs" ON audit_logs FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow team_members modifications" ON team_members FOR ALL USING (true);
+-- ---- USERS -----------------------------------------------------------
+-- Any authenticated user can read user profiles (needed for relational joins)
+CREATE POLICY "Authenticated can read users" ON users
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+-- Only admin can insert/update/delete users
+CREATE POLICY "Admin can manage users" ON users
+    FOR ALL USING (fn_get_caller_role() = 'admin');
+
+-- ---- ATHLETES --------------------------------------------------------
+CREATE POLICY "Authenticated can read athletes" ON athletes
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+-- Admin and staff can manage athletes
+CREATE POLICY "Admin and staff can manage athletes" ON athletes
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- COACHES ---------------------------------------------------------
+CREATE POLICY "Authenticated can read coaches" ON coaches
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admin can manage coaches" ON coaches
+    FOR ALL USING (fn_get_caller_role() = 'admin');
+
+-- ---- SPORTS (reference data) -----------------------------------------
+CREATE POLICY "Authenticated can read sports" ON sports
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admin can manage sports" ON sports
+    FOR ALL USING (fn_get_caller_role() = 'admin');
+
+-- ---- TEAMS -----------------------------------------------------------
+CREATE POLICY "Authenticated can read teams" ON teams
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admin can manage teams" ON teams
+    FOR ALL USING (fn_get_caller_role() = 'admin');
+
+-- ---- TEAM_MEMBERS ----------------------------------------------------
+CREATE POLICY "Authenticated can read team_members" ON team_members
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Admin and staff can manage team_members" ON team_members
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- EQUIPMENT -------------------------------------------------------
+-- All authenticated users can view equipment
+CREATE POLICY "Authenticated can read equipment" ON equipment
+    FOR SELECT USING (auth.uid() IS NOT NULL);
+
+-- Only admin and staff can modify equipment
+CREATE POLICY "Admin and staff can modify equipment" ON equipment
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- BORROWING_TRANSACTIONS ------------------------------------------
+-- Admin & staff see all transactions
+CREATE POLICY "Admin and staff can read all transactions" ON borrowing_transactions
+    FOR SELECT USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- Students can only see their own transactions
+CREATE POLICY "Students can read own transactions" ON borrowing_transactions
+    FOR SELECT USING (
+        fn_get_caller_role() = 'student' AND
+        athlete_id IN (
+            SELECT a.id FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        )
+    );
+
+-- Coaches can see transactions for athletes in their teams
+CREATE POLICY "Coaches can read their athletes transactions" ON borrowing_transactions
+    FOR SELECT USING (
+        fn_get_caller_role() = 'coach' AND
+        athlete_id IN (
+            SELECT tm.athlete_id FROM team_members tm
+            JOIN teams t ON tm.team_id = t.id
+            JOIN coaches c ON t.coach_id = c.id
+            JOIN users u ON c.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        )
+    );
+
+-- Only admin and staff can create/modify/delete transactions
+CREATE POLICY "Admin and staff can manage transactions" ON borrowing_transactions
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- BORROWING_ITEMS -------------------------------------------------
+CREATE POLICY "Admin and staff can read all borrowing_items" ON borrowing_items
+    FOR SELECT USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "Students can read own borrowing_items" ON borrowing_items
+    FOR SELECT USING (
+        fn_get_caller_role() = 'student' AND
+        transaction_id IN (
+            SELECT bt.id FROM borrowing_transactions bt
+            JOIN athletes a ON bt.athlete_id = a.id
+            JOIN users u ON a.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Coaches can read their athletes borrowing_items" ON borrowing_items
+    FOR SELECT USING (
+        fn_get_caller_role() = 'coach' AND
+        transaction_id IN (
+            SELECT bt.id FROM borrowing_transactions bt
+            JOIN athletes a ON bt.athlete_id = a.id
+            JOIN team_members tm ON a.id = tm.athlete_id
+            JOIN teams t ON tm.team_id = t.id
+            JOIN coaches c ON t.coach_id = c.id
+            JOIN users u ON c.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        )
+    );
+
+CREATE POLICY "Admin and staff can manage borrowing_items" ON borrowing_items
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- MAINTENANCE_RECORDS ---------------------------------------------
+CREATE POLICY "Admin and staff can read maintenance" ON maintenance_records
+    FOR SELECT USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- Coaches can view maintenance on equipment linked to their sport
+CREATE POLICY "Coaches can read maintenance" ON maintenance_records
+    FOR SELECT USING (fn_get_caller_role() = 'coach');
+
+CREATE POLICY "Admin and staff can manage maintenance" ON maintenance_records
+    FOR ALL USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+-- ---- AUDIT_LOGS (most restricted: admin only) ------------------------
+CREATE POLICY "Only admin can read audit_logs" ON audit_logs
+    FOR SELECT USING (fn_get_caller_role() = 'admin');
+
+-- The trigger functions use SECURITY DEFINER and bypass RLS for inserts
+CREATE POLICY "Triggers can insert audit_logs" ON audit_logs
+    FOR INSERT WITH CHECK (true);
 
 -- ============================================================================
 -- 6. REALISTIC UNIVERSITY SEED DATA
 -- ============================================================================
 
--- 6.1 Insert Roles
+-- 6.1 Insert Roles (includes coach role)
 INSERT INTO roles (id, name, description) VALUES
 ('00000000-0000-0000-0000-000000000001', 'admin', 'Full athletic department administrative control and audit oversight'),
 ('00000000-0000-0000-0000-000000000002', 'staff', 'Equipment custodian, inventory clerk, and checkout manager'),
-('00000000-0000-0000-0000-000000000003', 'student', 'Varsity athlete with roster viewing and equipment borrowing privileges');
+('00000000-0000-0000-0000-000000000003', 'coach', 'Varsity coaching staff with team and equipment oversight'),
+('00000000-0000-0000-0000-000000000004', 'student', 'Varsity athlete with roster viewing and equipment borrowing privileges');
 
 -- 6.2 Insert Users
+-- NOTE: user_auth_id is intentionally NULL here.
+-- After running Supabase Auth sign-ups, run:
+--   UPDATE users SET user_auth_id = '<auth_uid>' WHERE email = '<email>';
 INSERT INTO users (id, email, full_name, role_id, status) VALUES
--- Admin
 ('10000000-0000-0000-0000-000000000001', 'director@falcon.edu', 'Dr. Arthur Sterling', '00000000-0000-0000-0000-000000000001', 'active'),
--- Staff Custodians
 ('10000000-0000-0000-0000-000000000002', 'custodian@falcon.edu', 'Salvador Gomez', '00000000-0000-0000-0000-000000000002', 'active'),
 ('10000000-0000-0000-0000-000000000003', 'assistant.custodian@falcon.edu', 'Clara Dela Cruz', '00000000-0000-0000-0000-000000000002', 'active'),
--- Coaches
-('10000000-0000-0000-0000-000000000004', 'coach.carter@falcon.edu', 'Coach Kenneth Carter', '00000000-0000-0000-0000-000000000001', 'active'),
-('10000000-0000-0000-0000-000000000005', 'coach.walsh@falcon.edu', 'Coach Kerri Walsh', '00000000-0000-0000-0000-000000000001', 'active'),
--- Athletes
-('10000000-0000-0000-0000-000000000006', 'm.vance@falcon.edu', 'Marcus Vance', '00000000-0000-0000-0000-000000000003', 'active'),
-('10000000-0000-0000-0000-000000000007', 'e.rostova@falcon.edu', 'Elena Rostova', '00000000-0000-0000-0000-000000000003', 'active'),
-('10000000-0000-0000-0000-000000000008', 'j.reyes@falcon.edu', 'Jordan Reyes', '00000000-0000-0000-0000-000000000003', 'active'),
-('10000000-0000-0000-0000-000000000009', 'b.alvarez@falcon.edu', 'Bianca Alvarez', '00000000-0000-0000-0000-000000000003', 'active');
+('10000000-0000-0000-0000-000000000004', 'coach.carter@falcon.edu', 'Coach Kenneth Carter', '00000000-0000-0000-0000-000000000003', 'active'),
+('10000000-0000-0000-0000-000000000005', 'coach.walsh@falcon.edu', 'Coach Kerri Walsh', '00000000-0000-0000-0000-000000000003', 'active'),
+('10000000-0000-0000-0000-000000000006', 'm.vance@falcon.edu', 'Marcus Vance', '00000000-0000-0000-0000-000000000004', 'active'),
+('10000000-0000-0000-0000-000000000007', 'e.rostova@falcon.edu', 'Elena Rostova', '00000000-0000-0000-0000-000000000004', 'active'),
+('10000000-0000-0000-0000-000000000008', 'j.reyes@falcon.edu', 'Jordan Reyes', '00000000-0000-0000-0000-000000000004', 'active'),
+('10000000-0000-0000-0000-000000000009', 'b.alvarez@falcon.edu', 'Bianca Alvarez', '00000000-0000-0000-0000-000000000004', 'active');
 
 -- 6.3 Insert Coaches Details
 INSERT INTO coaches (id, user_id, employee_number, specialization, license_level) VALUES
@@ -704,27 +978,17 @@ INSERT INTO equipment (id, sport_id, equipment_code, name, category, total_quant
 ('70000000-0000-0000-0000-000000000007', '40000000-0000-0000-0000-000000000004', 'EQ-BD-001', 'Yonex Astrox 88D Pro Badminton Racket', 'Racket', 10, 8, 'good', 'available'),
 ('70000000-0000-0000-0000-000000000008', '40000000-0000-0000-0000-000000000001', 'EQ-MED-001', 'Field Emergency First Aid & Trauma Kit', 'Medical', 5, 4, 'new', 'available');
 
--- 6.9 Insert Borrowing Transactions (Header)
--- Tx 1: Overdue Loan (demonstrates fn_calculate_overdue_days and alert view)
+-- 6.9 Insert Borrowing Transactions
 INSERT INTO borrowing_transactions (id, athlete_id, approved_by, borrow_date, expected_return_date, actual_return_date, status, remarks) VALUES
-('80000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '7 days', CURRENT_DATE - INTERVAL '3 days', NULL, 'overdue', 'Inter-collegiate tournament practice scrimmage');
-
--- Tx 2: Active / On Schedule Loan
-INSERT INTO borrowing_transactions (id, athlete_id, approved_by, borrow_date, expected_return_date, actual_return_date, status, remarks) VALUES
-('80000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '1 day', CURRENT_DATE + INTERVAL '2 days', NULL, 'active', 'Afternoon spike conditioning session');
-
--- Tx 3: Successfully Returned Loan
-INSERT INTO borrowing_transactions (id, athlete_id, approved_by, borrow_date, expected_return_date, actual_return_date, status, remarks) VALUES
+('80000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '7 days', CURRENT_DATE - INTERVAL '3 days', NULL, 'overdue', 'Inter-collegiate tournament practice scrimmage'),
+('80000000-0000-0000-0000-000000000002', '30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000002', NOW() - INTERVAL '1 day', CURRENT_DATE + INTERVAL '2 days', NULL, 'active', 'Afternoon spike conditioning session'),
 ('80000000-0000-0000-0000-000000000003', '30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', NOW() - INTERVAL '10 days', CURRENT_DATE - INTERVAL '6 days', NOW() - INTERVAL '6 days', 'returned', 'Conditioning drills in field house');
 
 -- 6.10 Insert Borrowing Items (Junction 2)
 INSERT INTO borrowing_items (id, transaction_id, equipment_id, quantity, returned_quantity, condition_before, condition_after, return_status) VALUES
--- Items for Tx 1 (Overdue)
 ('90000000-0000-0000-0000-000000000001', '80000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', 3, 0, 'good', NULL, 'borrowed'),
 ('90000000-0000-0000-0000-000000000002', '80000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000002', 2, 0, 'good', NULL, 'borrowed'),
--- Items for Tx 2 (Active)
 ('90000000-0000-0000-0000-000000000003', '80000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-000000000003', 5, 0, 'good', NULL, 'borrowed'),
--- Items for Tx 3 (Returned)
 ('90000000-0000-0000-0000-000000000004', '80000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000001', 2, 2, 'good', 'good', 'returned');
 
 -- 6.11 Insert Maintenance Records
@@ -750,4 +1014,5 @@ SELECT 'DATABASE SETUP COMPLETE' AS status,
        (SELECT COUNT(*) FROM equipment) AS equipment_count,
        (SELECT COUNT(*) FROM borrowing_transactions) AS loans_count,
        (SELECT COUNT(*) FROM borrowing_items) AS loan_items_count,
+       (SELECT COUNT(*) FROM maintenance_records) AS maintenance_count,
        (SELECT COUNT(*) FROM audit_logs) AS audit_logs_count;

@@ -1,0 +1,229 @@
+// This is your Prisma schema file.
+// It maps directly to the FARE-ERP PostgreSQL tables defined in supabase/schema.sql.
+// Connection: Supabase Cloud PostgreSQL (no localhost)
+// ORM: Prisma v5 — provides type-safe query builders used throughout the Express API
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  // directUrl bypasses connection pooler for migrations
+  directUrl = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: roles — RBAC role definitions (admin, staff, coach, student)
+// ─────────────────────────────────────────────────────────────────────────────
+model roles {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique @db.VarChar(30)
+  description String?
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  users users[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: users — Core identity anchor; linked to Supabase auth.users via user_auth_id
+// ─────────────────────────────────────────────────────────────────────────────
+model users {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_auth_id String?   @unique @db.Uuid
+  school_id    String?   @unique @db.VarChar(15)
+  email        String    @unique @db.VarChar(255)
+  full_name    String    @db.VarChar(150)
+  role_id      String    @db.Uuid
+  status       String    @default("active") @db.VarChar(20)
+  created_at   DateTime  @default(now()) @db.Timestamptz
+
+  role                  roles                  @relation(fields: [role_id], references: [id])
+  athlete               athletes?
+  coach                 coaches?
+  approved_transactions borrowing_transactions[] @relation("approver")
+  reported_maintenance  maintenance_records[]
+  audit_logs            audit_logs[]            @relation("performer")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: athletes — 1:1 specialization of users for varsity student athletes
+// ─────────────────────────────────────────────────────────────────────────────
+model athletes {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String                 @unique @db.Uuid
+  student_number        String                 @unique @db.VarChar(30)
+  department            String                 @db.VarChar(100)
+  year_level            Int
+  emergency_contact     String                 @db.VarChar(100)
+  created_at            DateTime               @default(now()) @db.Timestamptz
+
+  user                  users                  @relation(fields: [user_id], references: [id])
+  team_members          team_members[]
+  borrowing_transactions borrowing_transactions[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: coaches — 1:1 specialization of users for athletic coaches
+// ─────────────────────────────────────────────────────────────────────────────
+model coaches {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String   @unique @db.Uuid
+  employee_number String   @unique @db.VarChar(30)
+  specialization  String   @db.VarChar(100)
+  license_level   String   @db.VarChar(50)
+  created_at      DateTime @default(now()) @db.Timestamptz
+
+  user  users   @relation(fields: [user_id], references: [id])
+  teams teams[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: sports — sporting disciplines master catalog
+// ─────────────────────────────────────────────────────────────────────────────
+model sports {
+  id         String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String      @unique @db.VarChar(100)
+  category   String      @db.VarChar(50)
+  status     String      @default("active") @db.VarChar(20)
+  created_at DateTime    @default(now()) @db.Timestamptz
+
+  teams     teams[]
+  equipment equipment[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: teams — varsity teams grouped by sport, coach, and academic year
+// ─────────────────────────────────────────────────────────────────────────────
+model teams {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sport_id    String   @db.Uuid
+  coach_id    String   @db.Uuid
+  team_name   String   @db.VarChar(150)
+  school_year String   @db.VarChar(20)
+  status      String   @default("active") @db.VarChar(20)
+  created_at  DateTime @default(now()) @db.Timestamptz
+
+  sport        sports         @relation(fields: [sport_id], references: [id])
+  coach        coaches        @relation(fields: [coach_id], references: [id])
+  team_members team_members[]
+
+  @@unique([sport_id, team_name, school_year])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: team_members — JUNCTION 1 (M:N teams ↔ athletes with rich attributes)
+//   Intersection attributes: position, jersey_number, joined_at, status
+// ─────────────────────────────────────────────────────────────────────────────
+model team_members {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  team_id        String   @db.Uuid
+  athlete_id     String   @db.Uuid
+  position       String   @db.VarChar(50)
+  jersey_number  Int?
+  joined_at      DateTime @default(now()) @db.Date
+  status         String   @default("active") @db.VarChar(20)
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  team    teams    @relation(fields: [team_id], references: [id])
+  athlete athletes @relation(fields: [athlete_id], references: [id])
+
+  @@unique([team_id, athlete_id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: equipment — inventory catalog and availability tracker
+// ─────────────────────────────────────────────────────────────────────────────
+model equipment {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sport_id           String   @db.Uuid
+  equipment_code     String   @unique @db.VarChar(50)
+  name               String   @db.VarChar(150)
+  category           String   @db.VarChar(50)
+  total_quantity     Int
+  available_quantity Int
+  condition          String   @default("good") @db.VarChar(30)
+  status             String   @default("available") @db.VarChar(30)
+  created_at         DateTime @default(now()) @db.Timestamptz
+  updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz
+
+  sport               sports               @relation(fields: [sport_id], references: [id])
+  borrowing_items     borrowing_items[]
+  maintenance_records maintenance_records[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: borrowing_transactions — header record for equipment loan sessions
+// ─────────────────────────────────────────────────────────────────────────────
+model borrowing_transactions {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  athlete_id           String    @db.Uuid
+  approved_by          String?   @db.Uuid
+  borrow_date          DateTime  @default(now()) @db.Timestamptz
+  expected_return_date DateTime  @db.Date
+  actual_return_date   DateTime? @db.Timestamptz
+  status               String    @default("pending") @db.VarChar(30)
+  remarks              String?
+  created_at           DateTime  @default(now()) @db.Timestamptz
+
+  athlete   athletes        @relation(fields: [athlete_id], references: [id])
+  approver  users?          @relation("approver", fields: [approved_by], references: [id])
+  items     borrowing_items[]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: borrowing_items — JUNCTION 2 (M:N transactions ↔ equipment with rich attributes)
+//   Intersection attributes: quantity, returned_quantity, condition_before, condition_after
+// ─────────────────────────────────────────────────────────────────────────────
+model borrowing_items {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_id    String   @db.Uuid
+  equipment_id      String   @db.Uuid
+  quantity          Int
+  returned_quantity Int      @default(0)
+  condition_before  String   @default("good") @db.VarChar(30)
+  condition_after   String?  @db.VarChar(30)
+  return_status     String   @default("borrowed") @db.VarChar(30)
+  created_at        DateTime @default(now()) @db.Timestamptz
+
+  transaction borrowing_transactions @relation(fields: [transaction_id], references: [id])
+  equipment   equipment              @relation(fields: [equipment_id], references: [id])
+
+  @@unique([transaction_id, equipment_id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: maintenance_records — equipment repair and servicing log
+// ─────────────────────────────────────────────────────────────────────────────
+model maintenance_records {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  equipment_id      String   @db.Uuid
+  reported_by       String   @db.Uuid
+  issue_description String
+  scheduled_date    DateTime @db.Date
+  cost              Decimal  @default(0.00) @db.Decimal(10, 2)
+  status            String   @default("pending") @db.VarChar(30)
+  created_at        DateTime @default(now()) @db.Timestamptz
+
+  equipment equipment @relation(fields: [equipment_id], references: [id])
+  reporter  users     @relation(fields: [reported_by], references: [id])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TABLE: audit_logs — immutable, trigger-populated security & mutation trail
+// ─────────────────────────────────────────────────────────────────────────────
+model audit_logs {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  table_name          String   @db.VarChar(50)
+  record_id           String?  @db.Uuid
+  action_type         String   @db.VarChar(10)
+  old_data            Json?
+  new_data            Json?
+  performed_by        String?  @db.Uuid
+  performed_by_auth   String?  @db.Uuid
+  ip_address          String?
+  created_at          DateTime @default(now()) @db.Timestamptz
+
+  performer users? @relation("performer", fields: [performed_by], references: [id])
+}

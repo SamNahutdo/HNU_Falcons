@@ -11,6 +11,7 @@
     <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
     <img src="https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite 6" />
     <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=for-the-badge&logo=supabase&logoColor=white" alt="Supabase PostgreSQL" />
+    <img src="https://img.shields.io/badge/Deployed-GitHub%20Pages-222222?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Pages" />
   </p>
 
   <p align="center">
@@ -38,17 +39,19 @@
 
 **FalconSystem** is a web application for managing athletic equipment, borrowing transactions, athletes, and teams for **Falcons Athletics**.
 
-Staff can manage inventory and equipment checkouts and returns. Coaches and student athletes have role-specific workspaces for team resources and equipment-related activities. The application can use Supabase for database access and includes mock data for local exploration.
+Staff can manage inventory and equipment checkouts and returns. Coaches and student athletes have role-specific workspaces for team resources and equipment-related activities. The live database is hosted on Supabase Cloud PostgreSQL with Supabase Auth enforcing role-based access control.
 
 </td>
 <td>
 
 ### 🚀 Highlights at a Glance
-- 👥 **Role-Specific Workspaces** (Administrator, Staff, Coach, Student)
+- 👥 **4-Role RBAC** (Admin, Staff, Coach, Student) with RLS
 - 📦 **Equipment Inventory** and condition tracking
-- 🔄 **Borrowing Records** with active, overdue, partial-return, and returned statuses
-- 🧾 **Expandable Loan Details** with per-item quantities and conditions
-- ☁️ **Supabase PostgreSQL** integration and local mock-data mode
+- 🔄 **Borrowing Records** with ACID-safe checkout RPC
+- 🔒 **Supabase Auth** integration with JWT-based RLS
+- ⚙️ **Edge Function Backend API** (Deno/TypeScript)
+- 🧾 **4 PL/pgSQL Triggers** + 2 ACID RPCs + 2 Views
+- ☁️ **GitHub Pages** deployment via CI/CD
 
 </td>
 </tr>
@@ -160,11 +163,14 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 
 | Feature Type | Object / File | Description |
 | :--- | :--- | :--- |
-| **Database schema** | `supabase/schema.sql` | Defines the PostgreSQL tables and relationships used by the application. |
-| **Database views** | `vw_active_loans_summary` | Provides a summary of active loans, borrowers, overdue days, and returned units. |
-| **Database views** | `vw_equipment_inventory_status` | Summarizes equipment quantities, utilization, stock health, and maintenance jobs. |
-| **Supabase client** | `src/services/supabase.ts` | Connects to Supabase and exposes application data operations. |
-| **Mock data** | `src/services/mockData.ts` | Supplies local sample data and operations when exploring without a live database. |
+| **Schema** | `supabase/schema.sql` | 12 tables (3NF), 4 roles, 4 triggers, 2 RPCs, 2 views, 24 indexes, full RLS |
+| **Backend API** | `supabase/functions/api/index.ts` | Deno Edge Function — JWT auth, RBAC, 7 REST routes |
+| **Database tests** | `supabase/database_tests.sql` | 16 PASS/FAIL tests: constraints, triggers, RPCs, normalization |
+| **Performance evidence** | `supabase/performance_report.sql` | 14 EXPLAIN ANALYZE queries + index usage statistics |
+| **View: loans** | `vw_active_loans_summary` | Loan summary with overdue days and loan urgency labels |
+| **View: inventory** | `vw_equipment_inventory_status` | Equipment utilization rates and stock health labels |
+| **Supabase client** | `src/services/supabase.ts` | Auth + data service — throws on live errors, no silent fallback |
+| **Mock data** | `src/services/mockData.ts` | Offline demo mode only — active when `.env` is not configured |
 
 </div>
 
@@ -174,23 +180,33 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 
 ```text
 📂 IM101_js/
+├── 📂 .github/workflows/
+│   └── 📄 deploy.yml           # CI/CD → GitHub Pages
 ├── 📂 public/
-│   └── 📂 images/                 # Application branding and static images
+│   └── 📂 images/              # Application branding
 ├── 📂 src/
-│   ├── 📂 components/             # Navigation, modals, and shared UI components
-│   │   ├── 📄 CheckoutModal.tsx   # Equipment checkout workflow
-│   │   └── 📄 ReturnModal.tsx     # Equipment return workflow
-│   ├── 📂 pages/                  # Role dashboards and application views
-│   │   └── 📄 BorrowingView.tsx   # Borrowing records, filters, and item details
-│   ├── 📂 services/               # Supabase integration and mock data
-│   ├── 📂 types/                  # Shared TypeScript data models
-│   ├── 📄 App.tsx                 # Application shell and role-based workspace
-│   └── 📄 index.css               # Global application styles
+│   ├── 📂 components/          # Navigation, modals, shared UI
+│   │   ├── 📄 CheckoutModal.tsx
+│   │   └── 📄 ReturnModal.tsx
+│   ├── 📂 pages/               # Role dashboards and views
+│   │   └── 📄 BorrowingView.tsx
+│   ├── 📂 services/
+│   │   ├── 📄 supabase.ts      # Auth + database service (live)
+│   │   └── 📄 mockData.ts      # Offline demo data
+│   ├── 📂 types/
+│   │   └── 📄 database.ts      # TypeScript data models
+│   └── 📄 App.tsx
 ├── 📂 supabase/
-│   └── 📄 schema.sql              # PostgreSQL schema and database objects
-├── 📄 .env.example                # Supabase environment variable template
-├── 📄 package.json                # Dependencies and npm scripts
-└── 📄 vite.config.ts              # Vite configuration
+│   ├── 📄 schema.sql           # Full schema, RLS, triggers, RPCs, seed
+│   ├── 📄 database_tests.sql   # 16 PASS/FAIL constraint & trigger tests
+│   ├── 📄 performance_report.sql  # EXPLAIN ANALYZE + index stats
+│   └── 📂 functions/
+│       └── 📂 api/
+│           └── 📄 index.ts     # Edge Function backend API (Deno)
+├── 📄 CONTRIBUTING.md          # Branch protection & PR workflow
+├── 📄 DATABASE_DEFENSE_GUIDE.md
+├── 📄 .env.example
+└── 📄 package.json
 ```
 
 ---
@@ -199,7 +215,8 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 
 ### 1. Requirements
 * **Node.js** and **npm**
-* A **Supabase project** for live database mode (optional when using mock data)
+* A **Supabase project** with the schema applied (`supabase/schema.sql`)
+* **Supabase Auth users** created and linked to `users.user_auth_id` rows
 
 ### 2. Installation Steps
 
@@ -207,24 +224,36 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 # 1. Install dependencies
 npm ci
 
-# 2. Optional: configure Supabase
-# Copy .env.example to .env and fill in the project URL and public anon key.
+# 2. Configure Supabase (required for live mode)
+# Copy .env.example to .env and fill in your project URL and anon key.
 
-# 3. Start the development server
+# 3. Apply the database schema
+# Open the Supabase SQL Editor and run supabase/schema.sql
+
+# 4. Create Supabase Auth accounts for demo users
+# In the Supabase Dashboard → Authentication → Users → Invite user
+# Then link each auth UID:
+#   UPDATE users SET user_auth_id = '<auth_uid>' WHERE email = '<email>';
+
+# 5. Deploy the Edge Function
+# npx supabase functions deploy api
+
+# 6. Start the dev server
 npm run dev
 ```
 
-Open the local URL printed by Vite in your browser. When Supabase is not configured, the app can use its mock-data mode.
-
-To enable Supabase, set these values in `.env`:
+In `.env`:
 
 ```dotenv
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
 
+> [!NOTE]
+> When `.env` is **not** configured, the app enters **Demo Mode** and uses offline mock data. The Login screen shows a yellow "DEMO MODE" banner so this state is always explicit.
+
 > [!WARNING]
-> `supabase/schema.sql` drops and recreates application tables and views. Review it and run it only against a new or disposable database unless you intend to replace its existing data. Never expose a Supabase `service_role` key in frontend code or environment variables.
+> `supabase/schema.sql` drops and recreates all application tables. Run it only against a new or disposable database. Never expose a Supabase `service_role` key in frontend code.
 
 ### 3. Available Commands
 
