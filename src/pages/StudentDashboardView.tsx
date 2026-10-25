@@ -116,7 +116,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
       return;
     }
 
-    const coachUser = mockDb.users.find(u => u.id === bookingModalCoach.user_id);
+    const coachUser = (bookingModalCoach as any).user || mockDb.users.find(u => u.id === bookingModalCoach.user_id) || mockDb.registeredAccounts.find(u => u.id === bookingModalCoach.user_id);
     const coachName = coachUser?.full_name || 'Varsity Coach';
 
     mockDb.createCoachBooking({
@@ -307,7 +307,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
 
           <div className="row g-4">
             {filteredCoaches.map(c => {
-              const coachUser = mockDb.users.find(u => u.id === c.user_id);
+              const coachUser = (c as any).user || mockDb.users.find(u => u.id === c.user_id) || mockDb.registeredAccounts.find(u => u.id === c.user_id);
               return (
                 <div key={c.id} className="col-12 col-md-6">
                   <div

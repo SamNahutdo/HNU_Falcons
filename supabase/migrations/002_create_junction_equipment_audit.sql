@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS team_members (
     jersey_number  INT,
     joined_at      DATE DEFAULT CURRENT_DATE,
     status         VARCHAR(20) DEFAULT 'active'
-                       CHECK (status IN ('active', 'benched', 'transferred', 'inactive')),
+                       CHECK (status IN ('active', 'benched', 'transferred', 'inactive', 'injured', 'graduated')),
     created_at     TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_team_athlete UNIQUE (team_id, athlete_id)
 );
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS borrowing_items (
     condition_before  VARCHAR(30) DEFAULT 'good',
     condition_after   VARCHAR(30),
     return_status     VARCHAR(30) DEFAULT 'borrowed'
-                          CHECK (return_status IN ('borrowed','returned','partial','lost')),
+                          CHECK (return_status IN ('borrowed','returned','partial','lost','damaged')),
     created_at        TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT uq_tx_equipment UNIQUE (transaction_id, equipment_id),
     CONSTRAINT chk_returned_lte_borrowed CHECK (returned_quantity <= quantity)

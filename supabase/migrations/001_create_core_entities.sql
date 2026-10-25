@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_coaches_employee_number ON coaches(employee_numbe
 CREATE TABLE IF NOT EXISTS sports (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name       VARCHAR(100) UNIQUE NOT NULL,
-    category   VARCHAR(50) NOT NULL CHECK (category IN ('team_sport', 'individual_sport')),
+    category   VARCHAR(50) NOT NULL CHECK (category IN ('team_sport', 'individual_sport', 'Team', 'Individual', 'Dual', 'Martial Arts', 'Aquatics')),
     status     VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

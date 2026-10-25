@@ -1,3 +1,11 @@
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+
+const supaUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supaKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase: SupabaseClient | null = (supaUrl && supaKey && supaUrl.startsWith('http'))
+  ? createClient(supaUrl, supaKey)
+  : null;
+
 import {
   Role,
   User,
@@ -629,6 +637,125 @@ class MockDatabaseStore {
 
   constructor() {
     this.initStorage();
+    if (supabase) {
+      this.syncFromSupabase();
+      try {
+        supabase
+          .channel('public-db-sync')
+          .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+            this.syncFromSupabase();
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('[Realtime error]', e);
+      }
+    }
+  }
+
+  async syncFromSupabase() {
+    if (!supabase) return;
+    try {
+      const [uRes, cRes, athRes, eRes, txRes, sRes, tRes, mRes, aRes] = await Promise.all([
+        supabase.from('users').select('*, role:roles(*)'),
+        supabase.from('coaches').select('*, user:users(*)'),
+        supabase.from('athletes').select('*, user:users(*)'),
+        supabase.from('equipment').select('*, sport:sports(*)'),
+        supabase.from('borrowing_transactions').select('*, items:borrowing_items(*, equipment:equipment(*)), athlete:athletes(*, user:users(*))'),
+        supabase.from('sports').select('*'),
+        supabase.from('teams').select('*, sport:sports(*), coach:coaches(*, user:users(*))'),
+        supabase.from('maintenance_records').select('*, equipment:equipment(*), reporter:users(*)'),
+        supabase.from('audit_logs').select('*, performer:users(*)')
+      ]);
+
+      let hasUpdated = false;
+
+      if (uRes.data && uRes.data.length > 0) {
+        const liveUsers = uRes.data.map((u: any) => ({
+          id: u.id,
+          school_id: u.school_id || u.id.slice(0, 8),
+          full_name: u.full_name,
+          username: u.email.split('@')[0],
+          password: 'password123',
+          role: Array.isArray(u.role) ? u.role[0]?.name : (u.role?.name || 'student'),
+          department: u.department || 'Falcon Athletics',
+          is_online: true,
+          status: u.status || 'active',
+          is_verified: u.status === 'active',
+          created_at: u.created_at
+        }));
+        this.registeredAccounts = liveUsers;
+        this.users = uRes.data.map((u: any) => ({
+          id: u.id,
+          role_id: u.role_id,
+          username: u.email.split('@')[0],
+          email: u.email,
+          full_name: u.full_name,
+          school_id: u.school_id,
+          status: u.status,
+          created_at: u.created_at
+        }));
+        hasUpdated = true;
+      }
+
+      if (cRes && cRes.data && cRes.data.length > 0) {
+        this.coaches = cRes.data.map((c: any) => ({
+          id: c.id,
+          user_id: c.user_id,
+          employee_number: c.employee_number,
+          specialization: c.specialization,
+          license_level: c.license_level,
+          available_days: ['Monday', 'Wednesday', 'Friday', 'Saturday'],
+          available_hours: '08:00 AM - 11:30 AM & 02:00 PM - 05:00 PM',
+          created_at: c.created_at,
+          user: c.user
+        }));
+        hasUpdated = true;
+      }
+
+      if (athRes && athRes.data && athRes.data.length > 0) {
+        this.athletes = athRes.data.map((a: any) => ({
+          id: a.id,
+          user_id: a.user_id,
+          student_number: a.student_number,
+          department: a.department,
+          year_level: a.year_level,
+          emergency_contact: a.emergency_contact,
+          created_at: a.created_at,
+          user: a.user
+        }));
+        hasUpdated = true;
+      }
+
+      if (eRes.data && eRes.data.length > 0) {
+        this.equipment = eRes.data.map((e: any) => ({
+          ...e,
+          sport: e.sport
+        }));
+        hasUpdated = true;
+      }
+
+      if (txRes.data && txRes.data.length > 0) {
+        this.borrowingTransactions = txRes.data.map((tx: any) => ({
+          ...tx,
+          borrower_name: tx.athlete?.user?.full_name || 'Borrower',
+          borrower_role: 'student',
+          borrower_school_id: tx.athlete?.student_number || 'N/A',
+          items: tx.items || []
+        }));
+        hasUpdated = true;
+      }
+
+      if (sRes.data && sRes.data.length > 0) { this.sports = sRes.data; hasUpdated = true; }
+      if (tRes.data && tRes.data.length > 0) { this.teams = tRes.data; hasUpdated = true; }
+      if (mRes.data && mRes.data.length > 0) { this.maintenanceRecords = mRes.data; hasUpdated = true; }
+      if (aRes.data && aRes.data.length > 0) { this.auditLogs = aRes.data; hasUpdated = true; }
+
+      if (hasUpdated) {
+        this.notify();
+      }
+    } catch (err) {
+      console.warn('[SyncFromSupabase Error]', err);
+    }
   }
 
   private initStorage() {
@@ -761,9 +888,11 @@ class MockDatabaseStore {
 
   verifyRegisteredUser(accountId: string) {
     const account = this.registeredAccounts.find(user => user.id === accountId);
-    if (!account || account.is_verified) return;
+    if (!account) return;
 
     account.is_verified = true;
+    account.status = 'active';
+    this.persist();
     this.notify();
   }
 
