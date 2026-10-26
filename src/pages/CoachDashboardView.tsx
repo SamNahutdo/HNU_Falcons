@@ -28,6 +28,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
@@ -37,6 +38,15 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
       setMyLoans(data.transactions);
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load dashboard data.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -123,8 +133,19 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
     <div className="container-fluid px-0">
       {/* HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">Coach Coaching & Training Hub</h4>
+        <div className="d-flex align-items-center gap-3">
+          <h4 className="fw-bold mb-0 text-dark">Coach Coaching & Training Hub</h4>
+          <button
+            type="button"
+            className="btn-refresh-modern"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh coach bookings and equipment"
+            aria-label="Refresh coach data"
+          >
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 
@@ -273,9 +294,19 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
           ========================================================================= */}
       {effectiveTab === 'bookings' && (
         <div className="card-modern">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
               <h5 className="fw-bold mb-0 text-dark">Student Training Booking Requests</h5>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh student booking requests"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
             </div>
             <span className="badge bg-dark rounded-pill px-3 py-1">
               {filteredBookings.length} Total Bookings
@@ -366,10 +397,22 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
           ========================================================================= */}
       {effectiveTab === 'borrow' && (
         <div className="card-modern">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h5 className="fw-bold mb-0 text-dark">Available Sports Equipment</h5>
-              <small className="text-muted">Select gear to borrow for varsity practice sessions</small>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
+              <div>
+                <h5 className="fw-bold mb-0 text-dark">Available Sports Equipment</h5>
+                <small className="text-muted">Select gear to borrow for varsity practice sessions</small>
+              </div>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh equipment list"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
             </div>
             <span className="badge bg-secondary rounded-pill px-3 py-1">
               {filteredEquipment.filter(e => e.available_quantity > 0).length} Items Available

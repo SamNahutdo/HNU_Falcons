@@ -1863,4 +1863,61 @@ body {
   }
 }
 
+/* ==========================================================================
+   MODERN REFRESH BUTTON COMPONENT
+   ========================================================================== */
+.btn-refresh-modern {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.95rem;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease-in-out;
+  user-select: none;
+  line-height: 1.2;
+}
+
+.btn-refresh-modern:hover:not(:disabled) {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: var(--coral);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+.btn-refresh-modern:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-refresh-modern:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.btn-refresh-modern .bi-arrow-clockwise,
+.btn-refresh-modern svg {
+  font-size: 0.95rem;
+  transition: transform 0.2s ease;
+}
+
+.spin-animation {
+  animation: refresh-spin 0.75s linear infinite !important;
+}
+
+@keyframes refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 

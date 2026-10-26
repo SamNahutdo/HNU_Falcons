@@ -69,6 +69,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
   const [repEquipmentId, setRepEquipmentId] = useState('');
   const [repDescription, setRepDescription] = useState('');
   const [repSeverity, setRepSeverity] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadAll = async () => {
     try {
@@ -81,6 +82,15 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
       setRegisteredBorrowers(data.users.filter(user => user.is_verified && user.status === 'active'));
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load staff dashboard data.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadAll();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -324,8 +334,19 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
     <div className="container-fluid px-0">
       {/* HEADER & TOAST */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">Staff Operations Desk</h4>
+        <div className="d-flex align-items-center gap-3">
+          <h4 className="fw-bold mb-0 text-dark">Staff Operations Desk</h4>
+          <button
+            type="button"
+            className="btn-refresh-modern"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh staff operations data"
+            aria-label="Refresh staff data"
+          >
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
 
         <div className="d-flex align-items-center gap-2">
@@ -378,6 +399,17 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
                   <option key={day} value={day}>Available on {day}</option>
                 ))}
               </select>
+
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh equipment inventory"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
 
               <button
                 type="button"
@@ -490,9 +522,19 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
           {/* ACTIVE LOANS & RETURN DEADLINES */}
           <div className="col-lg-8">
             <div className="card-modern h-100">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
                   <h5 className="fw-bold mb-0 text-dark">Active Loans & Deadline Alerts</h5>
+                  <button
+                    type="button"
+                    className="btn-refresh-modern"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    title="Refresh loans"
+                  >
+                    <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                    <span>Refresh</span>
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -646,9 +688,19 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
           ========================================================================= */}
       {effectiveTab === 'bookings' && (
         <div className="card-modern">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
               <h5 className="fw-bold mb-0 text-dark">Student-to-Coach Bookings</h5>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh bookings"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
             </div>
             <span className="badge bg-info text-dark rounded-pill px-3 py-1">
               {filteredBookings.length} Bookings
@@ -722,9 +774,19 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
           ========================================================================= */}
       {effectiveTab === 'reports' && (
         <div className="card-modern">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
               <h5 className="fw-bold mb-0 text-dark">Staff Incident Reports to Admin</h5>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh incident reports"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
             </div>
             <button
               type="button"

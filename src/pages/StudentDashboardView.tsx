@@ -39,6 +39,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
@@ -50,6 +51,15 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
       setMyAlerts(data.alerts);
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load dashboard data.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -149,10 +159,20 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
     <div className="container-fluid px-0">
       {/* HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">Student Athlete Portal</h4>
+        <div className="d-flex align-items-center gap-3">
+          <h4 className="fw-bold mb-0 text-dark">Student Athlete Portal</h4>
+          <button
+            type="button"
+            className="btn-refresh-modern"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh equipment and booking status"
+            aria-label="Refresh student data"
+          >
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
-
       </div>
 
       {toastMessage && (
@@ -188,6 +208,17 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
             </div>
 
             <div className="d-flex align-items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh equipment catalog"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
+
               {/* CATEGORY FILTER */}
               <select
                 className="form-select form-select-sm"
@@ -271,9 +302,19 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
           ========================================================================= */}
       {effectiveTab === 'book_coach' && (
         <div className="card-modern">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div className="d-flex align-items-center gap-2">
               <h5 className="fw-bold mb-0 text-dark">Book a Varsity Coach</h5>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh coaches directory"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>Refresh</span>
+              </button>
             </div>
             <span className="badge bg-primary rounded-pill px-3 py-1">
               {filteredCoaches.length} Varsity Coaches
@@ -349,8 +390,20 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
           {/* MY COACH BOOKINGS (WAITING FOR COACH TO APPROVE) */}
           <div className="col-lg-6">
             <div className="card-modern h-100">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h5 className="fw-bold mb-0 text-dark">My Coach Appointments</h5>
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-2">
+                  <h5 className="fw-bold mb-0 text-dark">My Coach Appointments</h5>
+                  <button
+                    type="button"
+                    className="btn-refresh-modern"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    title="Refresh appointments"
+                  >
+                    <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                    <span>Refresh</span>
+                  </button>
+                </div>
                 <span className="badge bg-dark rounded-pill px-2 py-1">{filteredBookings.length}</span>
               </div>
 

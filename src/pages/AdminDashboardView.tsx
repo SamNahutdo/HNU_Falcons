@@ -50,6 +50,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [adminActionError, setAdminActionError] = useState<string | null>(null);
   const [adminActionSuccess, setAdminActionSuccess] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const loadData = async () => {
     try {
@@ -60,6 +61,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       setReports(data.reports);
     } catch (error: unknown) {
       window.alert(error instanceof Error ? error.message : 'Could not load administrator data.');
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -288,8 +298,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
       <div className="admin-dashboard">
         <div className="admin-dashboard-main">
           <header className="admin-dashboard-header">
-            <div>
-              <h1>{pageTitle}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0 }}>{pageTitle}</h1>
+              <button
+                type="button"
+                className="btn-refresh-modern"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                title="Refresh dashboard data"
+                aria-label="Refresh dashboard data"
+              >
+                <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+                <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+              </button>
             </div>
             <AdminSearch
               searchTerm={searchTerm}
@@ -447,8 +468,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     return (
       <div className="container-fluid px-0">
         <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-          <div>
-            <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
+          <div className="d-flex align-items-center gap-3">
+            <h4 className="fw-bold mb-0 text-dark">{pageTitle}</h4>
+            <button
+              type="button"
+              className="btn-refresh-modern"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh pending account verifications"
+              aria-label="Refresh pending verifications"
+            >
+              <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+            </button>
           </div>
           <span className="badge rounded-pill px-3 py-2 bg-warning text-dark">
             {pendingUsers.length} Pending
@@ -515,13 +547,26 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     <div className="container-fluid px-0">
       {/* HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div>
-          <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
-          <span className="text-muted small">
-            {currentTab === 'dashboard'
-              ? 'Overview of registered members, active loans, and staff reports'
-              : currentTab === 'admin-staff'}
-          </span>
+        <div className="d-flex align-items-center gap-3 flex-wrap">
+          <div>
+            <h4 className="fw-bold mb-1 text-dark">{pageTitle}</h4>
+            <span className="text-muted small">
+              {currentTab === 'dashboard'
+                ? 'Overview of registered members, active loans, and staff reports'
+                : `Manage and view ${pageTitle}`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="btn-refresh-modern"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Refresh records from database"
+            aria-label="Refresh records"
+          >
+            <i className={`bi bi-arrow-clockwise ${isRefreshing ? 'spin-animation' : ''}`}></i>
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 

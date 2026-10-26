@@ -286,27 +286,40 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
           </select>
         </div>
 
-        {currentRole !== 'student' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
-            onClick={() => setIsAddOpen(true)}
-            style={{
-              background: 'var(--coral-gradient)',
-              border: 'none',
-              borderRadius: '9999px',
-              padding: '0.65rem 1.45rem',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '0.88rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
+            type="button"
+            className="btn-refresh-modern"
+            onClick={onRefresh}
+            title="Refresh equipment catalog"
+            aria-label="Refresh equipment"
           >
-            <Plus size={16} /> Add Equipment
+            <i className="bi bi-arrow-clockwise"></i>
+            <span>Refresh</span>
           </button>
-        )}
+
+          {currentRole !== 'student' && (
+            <button
+              onClick={() => setIsAddOpen(true)}
+              style={{
+                background: 'var(--coral-gradient)',
+                border: 'none',
+                borderRadius: '9999px',
+                padding: '0.65rem 1.45rem',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Plus size={16} /> Add Equipment
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Equipment Table Card */}
