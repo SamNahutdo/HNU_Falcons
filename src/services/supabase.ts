@@ -158,7 +158,7 @@ async function getActiveProfile(authUid: string, userEmail?: string) {
   const role = Array.isArray(profile.role) ? profile.role[0]?.name : profile.role?.name;
 
   if (profile.status !== 'active') {
-    throw new Error('Your account is pending approval or inactive. Contact an administrator.');
+    throw new Error('Your account is pending administrator verification. Please wait for an administrator to verify your account before logging in.');
   }
   if (!isUserRole(role)) {
     throw new Error('Your account has an invalid role. Contact an administrator.');
@@ -382,7 +382,7 @@ export const authService = {
           school_id: trimmedId,
           full_name: trimmedName,
           role_id: ROLE_IDS[role],
-          status: 'active'
+          status: 'inactive'
         })
         .eq('id', existingUser.id);
       publicUserId = existingUser.id;
@@ -395,7 +395,7 @@ export const authService = {
           full_name: trimmedName,
           school_id: trimmedId,
           role_id: ROLE_IDS[role],
-          status: 'active'
+          status: 'inactive'
         })
         .select()
         .single();

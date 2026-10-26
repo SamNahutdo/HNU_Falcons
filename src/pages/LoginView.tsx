@@ -115,7 +115,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       });
 
       setSuccessMessage(
-        `Account successfully registered for ${registration.fullName} as ${registration.role.toUpperCase()} (ID: ${finalSchoolId})! Saved to database. You can now log in.`
+        `Registration submitted for ${registration.fullName} as ${registration.role.toUpperCase()} (ID: ${finalSchoolId})! Your account is now pending administrator verification in the Admin Dashboard.`
       );
       setActiveMode('login');
       setIdentifier(registration.email);
