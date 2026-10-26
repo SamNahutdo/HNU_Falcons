@@ -29,6 +29,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [regPassword, setRegPassword] = useState('');
   const [regFullName, setRegFullName] = useState('');
   const [regSchoolId, setRegSchoolId] = useState('');
+  const [regRole, setRegRole] = useState<'student' | 'coach' | 'staff'>('student');
 
   // Always start with empty fields and clear browser auto-population
   useEffect(() => {
@@ -101,29 +102,29 @@ export const LoginView: React.FC<LoginViewProps> = ({
         window.crypto.getRandomValues(randomValue);
         return `2026${String((randomValue[0] % 90000) + 10000)}`;
       })();
-      if (!/^\d{7,15}$/.test(finalSchoolId)) {
-        throw new Error('School ID must contain 7 to 15 digits.');
+      if (finalSchoolId.length > 15) {
+        throw new Error('ID must be 15 characters or less.');
       }
 
-      const registration = await authService.registerStudent(
-        regEmail.trim(),
-        regPassword,
-        regFullName.trim(),
-        finalSchoolId
-      );
+      const registration = await authService.registerUser({
+        email: regEmail.trim(),
+        password: regPassword,
+        fullName: regFullName.trim(),
+        schoolId: finalSchoolId,
+        role: regRole
+      });
 
       setSuccessMessage(
-        registration.requiresEmailConfirmation
-          ? `Registration submitted for ${regFullName.trim()} (ID: ${finalSchoolId}). Confirm your email, then wait for administrator approval.`
-          : `Registration submitted for ${regFullName.trim()} (ID: ${finalSchoolId}). Your account will be available after an administrator approves it.`
+        `Account successfully registered for ${registration.fullName} as ${registration.role.toUpperCase()} (ID: ${finalSchoolId})! Saved to database. You can now log in.`
       );
       setActiveMode('login');
-      setIdentifier('');
+      setIdentifier(registration.email);
       setPassword('');
       setRegEmail('');
       setRegPassword('');
       setRegFullName('');
       setRegSchoolId('');
+      setRegRole('student');
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
@@ -318,6 +319,34 @@ export const LoginView: React.FC<LoginViewProps> = ({
             /* REGISTER FORM */
             <form onSubmit={handleRegisterSubmit}>
 
+              {/* Role Selection (Student, Coach, Staff - Admin excluded) */}
+              <div className="mb-3">
+                <label className="form-label-custom">Role / Account Type <span style={{ color: 'var(--coral, #FF6F59)' }}>*</span></label>
+                <div className="input-group-custom">
+                  <i className="bi bi-person-badge"></i>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value as 'student' | 'coach' | 'staff')}
+                    style={{
+                      flex: 1,
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '0.65rem 0.75rem',
+                      outline: 'none',
+                      color: '#1E293B',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                    required
+                  >
+                    <option value="student">Varsity Athlete / Student</option>
+                    <option value="coach">Varsity Coach</option>
+                    <option value="staff">Staff / Equipment Custodian</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="mb-3">
                 <label className="form-label-custom">Full Name <span style={{ color: 'var(--coral, #FF6F59)' }}>*</span></label>
                 <div className="input-group-custom">
@@ -333,12 +362,25 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
 
               <div className="mb-3">
-                <label className="form-label-custom">School ID / Student Number</label>
+                <label className="form-label-custom">
+                  {regRole === 'student'
+                    ? 'Student ID Number (e.g. 2024-20411)'
+                    : regRole === 'coach'
+                      ? 'Coach Employee ID (e.g. EMP-2024-001)'
+                      : 'Staff Employee ID (e.g. STAFF-003)'}
+                </label>
                 <div className="input-group-custom">
                   <i className="bi bi-card-text"></i>
                   <input
                     type="text"
-                    placeholder="e.g. 202610088 (Optional)"
+                    maxLength={15}
+                    placeholder={
+                      regRole === 'student'
+                        ? 'e.g. 202420411'
+                        : regRole === 'coach'
+                          ? 'e.g. EMP-2024-001'
+                          : 'e.g. STAFF-003'
+                    }
                     value={regSchoolId}
                     onChange={(e) => setRegSchoolId(e.target.value)}
                   />

@@ -83,6 +83,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </li>
               <div className="sidebar-section-title">Administration</div>
               <li>
+                <button onClick={() => handleNav('admin-admins')} className={currentTab === 'admin-admins' ? 'active' : ''}>
+                  <i className="bi bi-shield-lock-fill"></i>
+                  <span>Administrators</span>
+                </button>
+              </li>
+              <li>
                 <button onClick={() => handleNav('admin-staff')} className={currentTab === 'admin-staff' ? 'active' : ''}>
                   <i className="bi bi-person-workspace"></i>
                   <span>Staff</span>

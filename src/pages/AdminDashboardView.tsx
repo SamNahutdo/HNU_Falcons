@@ -38,8 +38,18 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [transactions, setTransactions] = useState<BorrowingTransaction[]>([]);
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [reports, setReports] = useState<StaffReport[]>([]);
-  const [activeUserTab, setActiveUserTab] = useState<'all' | 'staff' | 'coach' | 'student'>('all');
+  const [activeUserTab, setActiveUserTab] = useState<'all' | 'admin' | 'staff' | 'coach' | 'student'>('all');
   const [userRemovalError, setUserRemovalError] = useState<string | null>(null);
+
+  // Add Admin modal state
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [newAdminName, setNewAdminName] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminSchoolId, setNewAdminSchoolId] = useState('');
+  const [adminActionLoading, setAdminActionLoading] = useState(false);
+  const [adminActionError, setAdminActionError] = useState<string | null>(null);
+  const [adminActionSuccess, setAdminActionSuccess] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -94,15 +104,58 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
   };
 
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAdminActionError(null);
+    setAdminActionSuccess(null);
+    setAdminActionLoading(true);
+
+    try {
+      const generatedId = newAdminSchoolId.trim() || `ADMIN-${String(Math.floor(100 + Math.random() * 900))}`;
+      await dashboardApi.createAdmin({
+        full_name: newAdminName.trim(),
+        email: newAdminEmail.trim(),
+        password: newAdminPassword,
+        school_id: generatedId
+      });
+      setAdminActionSuccess(`Administrator account created successfully for ${newAdminName.trim()}!`);
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setNewAdminSchoolId('');
+      await loadData();
+      setTimeout(() => {
+        setShowAddAdminModal(false);
+        setAdminActionSuccess(null);
+      }, 1200);
+    } catch (err: unknown) {
+      setAdminActionError(err instanceof Error ? err.message : 'Failed to create administrator account.');
+    } finally {
+      setAdminActionLoading(false);
+    }
+  };
+
   const handleRemoveUser = async (user: RegisteredAccount) => {
+    if (
+      user.role === 'admin' &&
+      (user.school_id === 'ADMIN-001' || user.username === 'admin' || user.id === '10000000-0000-0000-0000-000000000001')
+    ) {
+      window.alert('The primary system administrator (ADMIN-001 / admin@gmail.com) cannot be removed.');
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Remove ${user.full_name} (${user.role}) from the system? They will no longer be able to log in.`
+      `Remove ${user.full_name} (${user.role.toUpperCase()}) from the system? They will be permanently deleted from the database and will no longer be able to log in.`
     );
     if (!confirmed) return;
 
     setUserRemovalError(null);
     try {
-      await dashboardApi.updateUser(user.id, 'disable');
+      if (user.role === 'admin') {
+        await dashboardApi.deleteAdmin(user.id);
+      } else {
+        await dashboardApi.deleteUser(user.id);
+      }
       await loadData();
     } catch (error: unknown) {
       setUserRemovalError(error instanceof Error ? error.message : 'Could not remove this account.');
@@ -127,13 +180,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     (user.department || '').toLowerCase().includes(search) ||
     (user.specialization || '').toLowerCase().includes(search)
   );
-  const pageRole = currentTab === 'admin-staff'
-    ? 'staff'
-    : currentTab === 'admin-coaches'
-      ? 'coach'
-      : currentTab === 'admin-students'
-        ? 'student'
-        : null;
+  const pageRole = currentTab === 'admin-admins'
+    ? 'admin'
+    : currentTab === 'admin-staff'
+      ? 'staff'
+      : currentTab === 'admin-coaches'
+        ? 'coach'
+        : currentTab === 'admin-students'
+          ? 'student'
+          : null;
   const filteredUsers = registeredUsers.filter(u => {
     const selectedRole = pageRole || (currentTab === 'dashboard' ? activeUserTab : 'all');
     const matchesTab = selectedRole === 'all' || u.role === selectedRole;
@@ -175,6 +230,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     report.status.includes(search)
   );
 
+  const adminCount = registeredUsers.filter(u => u.role === 'admin').length;
   const staffCount = registeredUsers.filter(u => u.role === 'staff').length;
   const coachCount = registeredUsers.filter(u => u.role === 'coach').length;
   const studentCount = registeredUsers.filter(u => u.role === 'student').length;
@@ -207,19 +263,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     .join(' ');
   const chartAreaPath = `${chartLinePath} L ${chartPoints[chartPoints.length - 1].x} 180 L ${chartPoints[0].x} 180 Z`;
   const registrationsThisWeek = userRegistrationsByDay.reduce((total, day) => total + day.count, 0);
-  const pageTitle = currentTab === 'admin-staff'
-    ? 'Registered Staff'
-    : currentTab === 'admin-coaches'
-      ? 'Registered Coaches'
-      : currentTab === 'admin-students'
-        ? 'Registered Students'
-        : currentTab === 'admin-verifications'
-          ? 'Account Verification'
-        : currentTab === 'admin-loans'
-          ? 'Active Loans'
-          : currentTab === 'admin-reports'
-            ? 'Staff Reports'
-            : 'Falcons Administration';
+  const pageTitle = currentTab === 'admin-admins'
+    ? 'System Administrators'
+    : currentTab === 'admin-staff'
+      ? 'Registered Staff'
+      : currentTab === 'admin-coaches'
+        ? 'Registered Coaches'
+        : currentTab === 'admin-students'
+          ? 'Registered Students'
+          : currentTab === 'admin-verifications'
+            ? 'Account Verification'
+          : currentTab === 'admin-loans'
+            ? 'Active Loans'
+            : currentTab === 'admin-reports'
+              ? 'Staff Reports'
+              : 'Falcons Administration';
 
   if (currentTab === 'dashboard') {
     const recentAccounts = [...dashboardAccounts]
@@ -241,6 +299,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </header>
 
           <div className="admin-stat-grid">
+            <button type="button" className="admin-stat-card stat-tint-rose" onClick={() => onNavigate('admin-admins')}>
+              <span className="admin-stat-label">Admins</span>
+              <strong>{adminCount}</strong>
+            </button>
             <button type="button" className="admin-stat-card stat-tint-blue" onClick={() => onNavigate('admin-staff')}>
               <span className="admin-stat-label">Staff Registered</span>
               <strong>{staffCount}</strong>
@@ -544,9 +606,23 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           </div>
 
           <div className="d-flex align-items-center gap-2 flex-wrap">
+            {/* ADD ADMIN BUTTON */}
+            <button
+              type="button"
+              className="btn btn-sm btn-danger d-inline-flex align-items-center gap-1 shadow-sm px-3"
+              onClick={() => {
+                setAdminActionError(null);
+                setAdminActionSuccess(null);
+                setShowAddAdminModal(true);
+              }}
+              style={{ fontWeight: 600, fontSize: '0.8rem' }}
+            >
+              <i className="bi bi-shield-plus"></i> Add New Admin
+            </button>
+
             {/* ROLE FILTER TABS */}
             {currentTab === 'dashboard' && <div className="btn-group" role="group">
-              {(['all', 'staff', 'coach', 'student'] as const).map(tab => (
+              {(['all', 'admin', 'staff', 'coach', 'student'] as const).map(tab => (
                 <button
                   key={tab}
                   type="button"
@@ -565,13 +641,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           placeholder={
-            currentTab === 'admin-staff'
-              ? 'Search staff by name or school ID...'
-              : currentTab === 'admin-coaches'
-                ? 'Search coaches by name or school ID...'
-                : currentTab === 'admin-students'
-                  ? 'Search students by name or school ID...'
-                  : 'Search members by name or school ID...'
+            currentTab === 'admin-admins'
+              ? 'Search administrators by name or admin ID...'
+              : currentTab === 'admin-staff'
+                ? 'Search staff by name or school ID...'
+                : currentTab === 'admin-coaches'
+                  ? 'Search coaches by name or school ID...'
+                  : currentTab === 'admin-students'
+                    ? 'Search students by name or school ID...'
+                    : 'Search members by name or school ID...'
           }
         />
 
@@ -585,13 +663,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                 <th className="py-3">Department</th>
                 <th className="py-3">Status</th>
                 <th className="py-3">Current Activity</th>
-                {pageRole && <th className="py-3 text-end">Actions</th>}
+                <th className="py-3 text-end">Actions</th>
               </tr>
             </thead>
             <tbody style={{ fontSize: '0.84rem' }}>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={pageRole ? 7 : 6} className="text-center py-4 text-muted">
+                  <td colSpan={7} className="text-center py-4 text-muted">
                     No registered members found.
                   </td>
                 </tr>
@@ -605,6 +683,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   const activeBooking = bookings.find(
                     b => (b.student_school_id === user.school_id || b.coach_school_id === user.school_id) &&
                         (b.status === 'pending' || b.status === 'approved')
+                  );
+
+                  const isPrimaryAdmin = user.role === 'admin' && (
+                    user.school_id === 'ADMIN-001' ||
+                    user.username === 'admin' ||
+                    user.id === '10000000-0000-0000-0000-000000000001'
                   );
 
                   return (
@@ -637,7 +721,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           {user.role}
                         </span>
                       </td>
-                      <td className="text-secondary">{user.department || user.specialization || 'Athletics'}</td>
+                      <td className="text-secondary">{user.department || user.specialization || (user.role === 'admin' ? 'Administration' : 'Athletics')}</td>
                       <td>
                         <span className="d-inline-flex align-items-center gap-1">
                           <span
@@ -666,22 +750,28 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           </span>
                         ) : user.role === 'staff' ? (
                           <span className="text-muted small">Managing Equipment Desk</span>
+                        ) : user.role === 'admin' ? (
+                          <span className="text-muted small">System Management</span>
                         ) : (
                           <span className="text-muted small">No active transaction</span>
                         )}
                       </td>
-                      {pageRole && (
-                        <td className="text-end">
+                      <td className="text-end">
+                        {isPrimaryAdmin ? (
+                          <span className="badge bg-secondary px-2 py-1 text-white" style={{ fontSize: '0.72rem' }}>
+                            <i className="bi bi-shield-fill-check me-1"></i>Primary Admin
+                          </span>
+                        ) : (
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger"
                             onClick={() => handleRemoveUser(user)}
                             aria-label={`Remove ${user.full_name}`}
                           >
-                            <i className="bi bi-trash me-1"></i>Remove
+                            <i className="bi bi-trash me-1"></i>{user.role === 'admin' ? 'Remove Admin' : 'Remove'}
                           </button>
-                        </td>
-                      )}
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -974,6 +1064,140 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ADD ADMINISTRATOR MODAL */}
+      {showAddAdminModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              padding: '1.75rem',
+              maxWidth: '480px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+          >
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h5 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                <i className="bi bi-shield-plus text-danger"></i> Add New Administrator
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                onClick={() => { setShowAddAdminModal(false); setAdminActionError(null); }}
+              />
+            </div>
+
+            <p className="text-muted small mb-3">
+              Create a new administrator account with full administrative privileges. This account will be saved to Supabase immediately and can access all administrative controls.
+            </p>
+
+            {adminActionError && (
+              <div className="alert alert-danger py-2 small mb-3">
+                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                {adminActionError}
+              </div>
+            )}
+            {adminActionSuccess && (
+              <div className="alert alert-success py-2 small mb-3">
+                <i className="bi bi-check-circle-fill me-1"></i>
+                {adminActionSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAdmin}>
+              <div className="mb-3">
+                <label className="form-label small fw-semibold text-dark">Full Name <span className="text-danger">*</span></label>
+                <input
+                  type="text"
+                  className="form-control form-control-sm"
+                  placeholder="e.g. Maria Clara"
+                  value={newAdminName}
+                  onChange={(e) => setNewAdminName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small fw-semibold text-dark">Admin ID (Max 15 characters, Optional)</label>
+                <input
+                  type="text"
+                  maxLength={15}
+                  className="form-control form-control-sm"
+                  placeholder="e.g. ADMIN-002"
+                  value={newAdminSchoolId}
+                  onChange={(e) => setNewAdminSchoolId(e.target.value)}
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small fw-semibold text-dark">Email Address <span className="text-danger">*</span></label>
+                <input
+                  type="email"
+                  className="form-control form-control-sm"
+                  placeholder="e.g. admin2@falcon.edu"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small fw-semibold text-dark">Password (min 12 characters) <span className="text-danger">*</span></label>
+                <input
+                  type="password"
+                  minLength={12}
+                  className="form-control form-control-sm"
+                  placeholder="At least 12 characters"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="d-flex justify-content-end gap-2 mt-4">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-secondary"
+                  disabled={adminActionLoading}
+                  onClick={() => setShowAddAdminModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-sm btn-danger px-3 d-inline-flex align-items-center gap-1"
+                  disabled={adminActionLoading}
+                >
+                  {adminActionLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                      Saving to Supabase...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-shield-check"></i> Create Admin Account
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

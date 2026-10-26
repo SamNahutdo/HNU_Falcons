@@ -18,11 +18,35 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase credentials (set in .env)
 // ─────────────────────────────────────────────────────────────────────────────
+export const ROLE_IDS: Record<UserRole, string> = {
+  admin: '00000000-0000-0000-0000-000000000001',
+  staff: '00000000-0000-0000-0000-000000000002',
+  coach: '00000000-0000-0000-0000-000000000003',
+  student: '00000000-0000-0000-0000-000000000004'
+};
+
 export function getSupabaseCredentials(): { url: string; anonKey: string; isLiveConfigured: boolean } {
   const url = import.meta.env.VITE_SUPABASE_URL || 'https://ulaqsayqqkfebsavaisc.supabase.co';
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_bzKmpGAYVBxAmokpcJYaCw_PK1hFJCG';
   const isLiveConfigured = Boolean(url && anonKey && url.startsWith('http'));
   return { url, anonKey, isLiveConfigured };
+}
+
+let cachedAdminClient: SupabaseClient | null = null;
+export function getAdminSupabaseClient(): SupabaseClient {
+  if (cachedAdminClient) return cachedAdminClient;
+  const url = import.meta.env.VITE_SUPABASE_URL || 'https://ulaqsayqqkfebsavaisc.supabase.co';
+  const secretKey = import.meta.env.VITE_SUPABASE_SECRET_KEY;
+  if (!secretKey) {
+    return requireSupabaseClient();
+  }
+  cachedAdminClient = createClient(url, secretKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+  return cachedAdminClient;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -255,22 +279,159 @@ export const authService = {
     }
   },
 
-  async registerStudent(email: string, password: string, fullName: string, schoolId: string) {
-    const client = requireSupabaseClient();
-    const { data, error } = await client.auth.signUp({
-      email,
+  /**
+   * Register a user with one of the 3 public roles: student, coach, or staff.
+   * Immediately inserts into public.users and role child table so the account appears in Supabase.
+   */
+  async registerUser({
+    email,
+    password,
+    fullName,
+    schoolId,
+    role = 'student',
+    department,
+    specialization
+  }: {
+    email: string;
+    password: string;
+    fullName: string;
+    schoolId: string;
+    role: 'student' | 'coach' | 'staff';
+    department?: string;
+    specialization?: string;
+  }) {
+    if ((role as string) === 'admin') {
+      throw new Error('Administrator accounts cannot be registered from the public portal. Only an active administrator can create new admin accounts.');
+    }
+    if (!['student', 'coach', 'staff'].includes(role)) {
+      throw new Error('Please select a valid role (Student, Coach, or Staff).');
+    }
+
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedName = fullName.trim();
+    const trimmedId = schoolId.trim().slice(0, 15);
+
+    const admin = getAdminSupabaseClient();
+    const anon = requireSupabaseClient();
+
+    // 1. Create the Auth User with email auto-confirmed so rate limits don't block them
+    let authUid: string | null = null;
+    const { data: authResult, error: authError } = await admin.auth.admin.createUser({
+      email: trimmedEmail,
       password,
-      options: { data: { full_name: fullName, school_id: schoolId } }
+      email_confirm: true,
+      user_metadata: {
+        full_name: trimmedName,
+        school_id: trimmedId,
+        role
+      }
     });
 
-    if (error || !data.user) {
-      throw new Error(error?.message ?? 'Registration failed.');
+    if (authError) {
+      // Fallback to anon.signUp if admin fails (e.g. rate or network edge case)
+      const { data: signUpData, error: signUpError } = await anon.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: { data: { full_name: trimmedName, school_id: trimmedId, role } }
+      });
+      if (signUpError || !signUpData.user) {
+        throw new Error(signUpError?.message || authError.message);
+      }
+      authUid = signUpData.user.id;
+      if (signUpData.session) {
+        await anon.auth.signOut({ scope: 'local' });
+      }
+    } else {
+      authUid = authResult.user.id;
     }
-    if (data.session) {
-      const { error: signOutError } = await client.auth.signOut({ scope: 'local' });
-      if (signOutError) throw new Error('Account registered, but sign-out failed. Close the browser if this is a shared device.');
+
+    // 2. Insert or update record in public.users table immediately
+    const { data: existingUser } = await admin
+      .from('users')
+      .select('id, user_auth_id')
+      .ilike('email', trimmedEmail)
+      .maybeSingle();
+
+    let publicUserId: string;
+
+    if (existingUser) {
+      await admin
+        .from('users')
+        .update({
+          user_auth_id: authUid,
+          school_id: trimmedId,
+          full_name: trimmedName,
+          role_id: ROLE_IDS[role],
+          status: 'active'
+        })
+        .eq('id', existingUser.id);
+      publicUserId = existingUser.id;
+    } else {
+      const { data: newUser, error: insertError } = await admin
+        .from('users')
+        .insert({
+          user_auth_id: authUid,
+          email: trimmedEmail,
+          full_name: trimmedName,
+          school_id: trimmedId,
+          role_id: ROLE_IDS[role],
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (insertError || !newUser) {
+        throw new Error(insertError?.message || 'Failed to initialize profile in Supabase users table.');
+      }
+      publicUserId = newUser.id;
     }
-    return { requiresEmailConfirmation: !data.session };
+
+    // 3. Populate role-specific child table (athletes or coaches)
+    if (role === 'student') {
+      const { data: existingAthlete } = await admin
+        .from('athletes')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingAthlete) {
+        await admin.from('athletes').insert({
+          user_id: publicUserId,
+          student_number: trimmedId,
+          department: department || 'Athletics Department',
+          year_level: 1,
+          emergency_contact: 'None'
+        });
+      }
+    } else if (role === 'coach') {
+      const { data: existingCoach } = await admin
+        .from('coaches')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingCoach) {
+        await admin.from('coaches').insert({
+          user_id: publicUserId,
+          employee_number: trimmedId,
+          specialization: specialization || 'Varsity Athletics',
+          license_level: 'Certified'
+        });
+      }
+    }
+
+    return {
+      success: true,
+      authUid,
+      userId: publicUserId,
+      email: trimmedEmail,
+      fullName: trimmedName,
+      role
+    };
+  },
+
+  async registerStudent(email: string, password: string, fullName: string, schoolId: string) {
+    return this.registerUser({ email, password, fullName, schoolId, role: 'student' });
   },
 
   async signOut(): Promise<void> {

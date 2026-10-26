@@ -16,6 +16,7 @@ export const Topbar: React.FC<TopbarProps> = ({
 }) => {
   const adminSearchPlaceholder: Record<string, string> = {
     dashboard: 'Search members by name or school ID...',
+    'admin-admins': 'Search administrators by name or admin ID...',
     'admin-staff': 'Search staff by name or school ID...',
     'admin-coaches': 'Search coaches by name or school ID...',
     'admin-students': 'Search students by name or school ID...',
