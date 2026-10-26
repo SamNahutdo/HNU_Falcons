@@ -24,6 +24,12 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
+  // Register form
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regFullName, setRegFullName] = useState('');
+  const [regSchoolId, setRegSchoolId] = useState('');
+
   // Always start with empty fields and clear browser auto-population
   useEffect(() => {
     setIdentifier('');
@@ -278,10 +284,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
 
               <div className="d-flex justify-content-between align-items-center mb-4" style={{ fontSize: '0.82rem' }}>
-                <span className="text-muted" style={{ fontSize: '0.75rem' }}>
-                  <i className="bi bi-shield-check text-success me-1"></i>
-                  {lockoutSeconds > 0 ? `Locked for ${lockoutSeconds}s` : 'Ready to Sign In'}
-                </span>
+
                 <span
                   onClick={() => { setActiveMode('register'); setErrorMessage(null); }}
                   style={{ color: 'var(--coral, #FF6F59)', cursor: 'pointer', fontWeight: 600 }}
