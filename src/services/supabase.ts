@@ -19,8 +19,8 @@ import {
 // Supabase credentials (set in .env)
 // ─────────────────────────────────────────────────────────────────────────────
 export function getSupabaseCredentials(): { url: string; anonKey: string; isLiveConfigured: boolean } {
-  const url = import.meta.env.VITE_SUPABASE_URL || '';
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const url = import.meta.env.VITE_SUPABASE_URL || 'https://ulaqsayqqkfebsavaisc.supabase.co';
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_bzKmpGAYVBxAmokpcJYaCw_PK1hFJCG';
   const isLiveConfigured = Boolean(url && anonKey && url.startsWith('http'));
   return { url, anonKey, isLiveConfigured };
 }
