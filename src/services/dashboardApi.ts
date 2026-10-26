@@ -22,7 +22,6 @@ export const dashboardApi = {
       client.from('borrowing_transactions').select(`
         *,
         athlete:athletes(*, user:users(full_name, school_id)),
-        coach:coaches(*, user:users(full_name, school_id)),
         approver:users(id, full_name),
         items:borrowing_items(*, equipment:equipment(*))
       `).order('borrow_date', { ascending: false }),
@@ -219,7 +218,6 @@ export const dashboardApi = {
       .from('borrowing_transactions')
       .insert([{
         athlete_id: athleteId,
-        coach_id: coachId,
         expected_return_date: data.expected_return_date,
         approved_by: profile?.userId || null,
         status: 'active',
