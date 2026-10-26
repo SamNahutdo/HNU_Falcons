@@ -37,6 +37,7 @@ model users {
   full_name    String    @db.VarChar(150)
   role_id      String    @db.Uuid
   status       String    @default("active") @db.VarChar(20)
+  is_online    Boolean   @default(false)
   created_at   DateTime  @default(now()) @db.Timestamptz
 
   role                  roles                  @relation(fields: [role_id], references: [id])
@@ -45,6 +46,9 @@ model users {
   approved_transactions borrowing_transactions[] @relation("approver")
   reported_maintenance  maintenance_records[]
   audit_logs            audit_logs[]            @relation("performer")
+  reported_staff_reports staff_reports[]         @relation("staff_reporter")
+  borrower_staff_reports staff_reports[]          @relation("staff_report_borrower")
+  return_alerts          return_alerts[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -62,6 +66,7 @@ model athletes {
   user                  users                  @relation(fields: [user_id], references: [id])
   team_members          team_members[]
   borrowing_transactions borrowing_transactions[]
+  coach_bookings       coach_bookings[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,10 +78,14 @@ model coaches {
   employee_number String   @unique @db.VarChar(30)
   specialization  String   @db.VarChar(100)
   license_level   String   @db.VarChar(50)
+  available_days  String[] @default([])
+  available_hours String?  @db.VarChar(100)
   created_at      DateTime @default(now()) @db.Timestamptz
 
-  user  users   @relation(fields: [user_id], references: [id])
-  teams teams[]
+  user                   users                    @relation(fields: [user_id], references: [id])
+  teams                  teams[]
+  borrowing_transactions borrowing_transactions[]
+  coach_bookings         coach_bookings[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -145,12 +154,16 @@ model equipment {
   available_quantity Int
   condition          String   @default("good") @db.VarChar(30)
   status             String   @default("available") @db.VarChar(30)
+  available_days     String[] @default([])
+  condition_notes    String?
+  last_inspected     DateTime? @db.Date
   created_at         DateTime @default(now()) @db.Timestamptz
   updated_at         DateTime @default(now()) @updatedAt @db.Timestamptz
 
   sport               sports               @relation(fields: [sport_id], references: [id])
   borrowing_items     borrowing_items[]
   maintenance_records maintenance_records[]
+  staff_reports       staff_reports[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -158,7 +171,8 @@ model equipment {
 // ─────────────────────────────────────────────────────────────────────────────
 model borrowing_transactions {
   id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  athlete_id           String    @db.Uuid
+  athlete_id           String?   @db.Uuid
+  coach_id             String?   @db.Uuid
   approved_by          String?   @db.Uuid
   borrow_date          DateTime  @default(now()) @db.Timestamptz
   expected_return_date DateTime  @db.Date
@@ -167,9 +181,11 @@ model borrowing_transactions {
   remarks              String?
   created_at           DateTime  @default(now()) @db.Timestamptz
 
-  athlete   athletes        @relation(fields: [athlete_id], references: [id])
+  athlete   athletes?       @relation(fields: [athlete_id], references: [id])
+  coach     coaches?        @relation(fields: [coach_id], references: [id])
   approver  users?          @relation("approver", fields: [approved_by], references: [id])
   items     borrowing_items[]
+  return_alerts return_alerts[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,4 +242,48 @@ model audit_logs {
   created_at          DateTime @default(now()) @db.Timestamptz
 
   performer users? @relation("performer", fields: [performed_by], references: [id])
+}
+
+model coach_bookings {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  student_id   String   @db.Uuid
+  coach_id     String   @db.Uuid
+  sport        String   @db.VarChar(100)
+  booking_date DateTime @db.Date
+  time_slot    String   @db.VarChar(80)
+  purpose      String
+  status       String   @default("pending") @db.VarChar(20)
+  coach_notes  String?
+  created_at   DateTime @default(now()) @db.Timestamptz
+
+  student athletes @relation(fields: [student_id], references: [id])
+  coach   coaches  @relation(fields: [coach_id], references: [id])
+}
+
+model staff_reports {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  report_type      String   @db.VarChar(30)
+  item_id          String?  @db.Uuid
+  borrower_user_id String   @db.Uuid
+  reported_by      String   @db.Uuid
+  description      String
+  severity         String   @db.VarChar(20)
+  status           String   @default("submitted") @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz
+
+  item     equipment? @relation(fields: [item_id], references: [id], onDelete: SetNull)
+  borrower users      @relation("staff_report_borrower", fields: [borrower_user_id], references: [id])
+  reporter users      @relation("staff_reporter", fields: [reported_by], references: [id])
+}
+
+model return_alerts {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transaction_id   String   @db.Uuid
+  recipient_user_id String  @db.Uuid
+  message          String
+  sent_at          DateTime @default(now()) @db.Timestamptz
+  is_read          Boolean  @default(false)
+
+  transaction borrowing_transactions @relation(fields: [transaction_id], references: [id], onDelete: Cascade)
+  recipient   users                  @relation(fields: [recipient_user_id], references: [id])
 }

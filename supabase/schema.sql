@@ -53,6 +53,7 @@ CREATE TABLE users (
     full_name VARCHAR(150) NOT NULL,
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE RESTRICT,
     status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
+    is_online BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT users_school_id_unique UNIQUE (school_id),
     CONSTRAINT users_school_id_format_check CHECK (school_id IS NULL OR school_id ~ '^[0-9A-Za-z-]{6,15}$')
@@ -76,6 +77,8 @@ CREATE TABLE coaches (
     employee_number VARCHAR(30) UNIQUE NOT NULL,
     specialization VARCHAR(100) NOT NULL,
     license_level VARCHAR(50) NOT NULL,
+    available_days TEXT[] NOT NULL DEFAULT '{}',
+    available_hours VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -124,6 +127,9 @@ CREATE TABLE equipment (
     available_quantity INT NOT NULL CHECK (available_quantity >= 0 AND available_quantity <= total_quantity),
     condition VARCHAR(30) NOT NULL DEFAULT 'good' CHECK (condition IN ('new', 'good', 'fair', 'needs_maintenance', 'damaged')),
     status VARCHAR(30) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'low_stock', 'out_of_stock', 'under_maintenance', 'retired')),
+    available_days TEXT[] NOT NULL DEFAULT '{}',
+    condition_notes TEXT,
+    last_inspected DATE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -131,14 +137,17 @@ CREATE TABLE equipment (
 -- 1.9 BORROWING_TRANSACTIONS TABLE (Header for Equipment Loans)
 CREATE TABLE borrowing_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    athlete_id UUID NOT NULL REFERENCES athletes(id) ON DELETE RESTRICT,
+    athlete_id UUID REFERENCES athletes(id) ON DELETE RESTRICT,
+    coach_id UUID REFERENCES coaches(id) ON DELETE RESTRICT,
     approved_by UUID REFERENCES users(id) ON DELETE RESTRICT,
     borrow_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expected_return_date DATE NOT NULL,
     actual_return_date TIMESTAMPTZ,
     status VARCHAR(30) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'active', 'partially_returned', 'returned', 'overdue', 'cancelled')),
     remarks TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT borrowing_transactions_one_borrower
+        CHECK ((athlete_id IS NOT NULL) <> (coach_id IS NOT NULL))
 );
 
 -- 1.10 BORROWING_ITEMS TABLE (JUNCTION 2: Many-to-Many between Transactions and Equipment)
@@ -180,6 +189,50 @@ CREATE TABLE audit_logs (
     ip_address INET,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE coach_bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES athletes(id) ON DELETE RESTRICT,
+    coach_id UUID NOT NULL REFERENCES coaches(id) ON DELETE RESTRICT,
+    sport VARCHAR(100) NOT NULL,
+    booking_date DATE NOT NULL,
+    time_slot VARCHAR(80) NOT NULL,
+    purpose TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected', 'completed')),
+    coach_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE staff_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_type VARCHAR(30) NOT NULL
+        CHECK (report_type IN ('damaged_equipment', 'overdue_return')),
+    item_id UUID REFERENCES equipment(id) ON DELETE SET NULL,
+    borrower_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    reported_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    description TEXT NOT NULL,
+    severity VARCHAR(20) NOT NULL
+        CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    status VARCHAR(20) NOT NULL DEFAULT 'submitted'
+        CHECK (status IN ('submitted', 'reviewed', 'resolved')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE return_alerts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id UUID NOT NULL REFERENCES borrowing_transactions(id) ON DELETE CASCADE,
+    recipient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    message TEXT NOT NULL,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_read BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_borrowing_transactions_coach_id ON borrowing_transactions(coach_id);
+CREATE INDEX idx_coach_bookings_student_date ON coach_bookings(student_id, booking_date DESC);
+CREATE INDEX idx_coach_bookings_coach_date ON coach_bookings(coach_id, booking_date DESC);
+CREATE INDEX idx_staff_reports_status_created ON staff_reports(status, created_at DESC);
+CREATE INDEX idx_return_alerts_recipient_sent ON return_alerts(recipient_user_id, sent_at DESC);
 
 -- ============================================================================
 -- 2. PERFORMANCE & SEARCH OPTIMIZATION: B-TREE INDEXES
@@ -687,7 +740,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================================================
 
 -- 4.1 VIEW: Active & Overdue Loans Summary
-CREATE OR REPLACE VIEW vw_active_loans_summary AS
+CREATE OR REPLACE VIEW vw_active_loans_summary WITH (security_invoker = true) AS
 SELECT
     bt.id AS transaction_id,
     bt.borrow_date,
@@ -722,7 +775,7 @@ GROUP BY
     ath.department, u.email, staff.full_name;
 
 -- 4.2 VIEW: Real-time Equipment Inventory & Stock Health Status
-CREATE OR REPLACE VIEW vw_equipment_inventory_status AS
+CREATE OR REPLACE VIEW vw_equipment_inventory_status WITH (security_invoker = true) AS
 SELECT
     e.id AS equipment_id,
     e.equipment_code,
@@ -750,9 +803,56 @@ GROUP BY e.id, e.equipment_code, e.name, e.category, s.name, e.total_quantity, e
 
 -- ============================================================================
 -- 5. ROW LEVEL SECURITY (RLS) POLICIES
---    Enabled on all 12 normalized tables. Permissive app-level policies
---    allow client queries and mutations while maintaining RLS compliance.
+--    Role-scoped policies for authenticated Supabase users.
 -- ============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user_profile()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+    student_role_id uuid;
+    profile_name text;
+    profile_school_id text;
+BEGIN
+    SELECT id INTO student_role_id
+    FROM public.roles
+    WHERE name = 'student';
+
+    IF student_role_id IS NULL THEN
+        RAISE EXCEPTION 'Student role is not configured.';
+    END IF;
+
+    profile_name := COALESCE(
+        NULLIF(btrim(NEW.raw_user_meta_data ->> 'full_name'), ''),
+        split_part(NEW.email, '@', 1)
+    );
+    profile_school_id := NULLIF(NEW.raw_user_meta_data ->> 'school_id', '');
+    IF profile_school_id IS NOT NULL AND profile_school_id !~ '^[0-9]{7,15}$' THEN
+        profile_school_id := NULL;
+    END IF;
+
+    INSERT INTO public.users (
+        user_auth_id, email, full_name, school_id, role_id, status
+    )
+    VALUES (
+        NEW.id, NEW.email, profile_name, profile_school_id, student_role_id, 'inactive'
+    )
+    ON CONFLICT (email) DO NOTHING;
+
+    RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.handle_new_auth_user_profile() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS on_auth_user_created_profile ON auth.users;
+CREATE TRIGGER on_auth_user_created_profile
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_auth_user_profile();
+
 ALTER TABLE roles                   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users                   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE athletes                ENABLE ROW LEVEL SECURITY;
@@ -765,19 +865,98 @@ ALTER TABLE borrowing_transactions  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE borrowing_items         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance_records     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE coach_bookings          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE staff_reports           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE return_alerts            ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public access roles" ON roles FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access users" ON users FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access athletes" ON athletes FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access coaches" ON coaches FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access sports" ON sports FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access teams" ON teams FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access team_members" ON team_members FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access equipment" ON equipment FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access borrowing_transactions" ON borrowing_transactions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access borrowing_items" ON borrowing_items FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access maintenance_records" ON maintenance_records FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow public access audit_logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "roles: authenticated read" ON roles FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "roles: admin manage" ON roles FOR ALL
+    USING (fn_get_caller_role() = 'admin');
+
+CREATE POLICY "users: own profile or staff+" ON users FOR SELECT
+    USING (user_auth_id = auth.uid() OR fn_get_caller_role() IN ('admin', 'staff'));
+CREATE POLICY "users: admin manage" ON users FOR ALL
+    USING (fn_get_caller_role() = 'admin');
+
+CREATE POLICY "athletes: read by role" ON athletes FOR SELECT
+    USING (
+        (fn_get_caller_role() = 'student' AND user_id IN (
+            SELECT id FROM users WHERE user_auth_id = auth.uid()
+        ))
+        OR fn_get_caller_role() IN ('admin', 'staff', 'coach')
+    );
+CREATE POLICY "athletes: admin/staff manage" ON athletes FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "coaches: read authenticated" ON coaches FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "coaches: admin manage" ON coaches FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "sports: authenticated read" ON sports FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "sports: admin manage" ON sports FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "teams: authenticated read" ON teams FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "teams: admin/staff manage" ON teams FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "team_members: authenticated read" ON team_members FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "team_members: admin/staff manage" ON team_members FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "equipment: authenticated read" ON equipment FOR SELECT
+    USING (auth.uid() IS NOT NULL);
+CREATE POLICY "equipment: admin/staff manage" ON equipment FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "borrowing_transactions: role-filtered read" ON borrowing_transactions FOR SELECT
+    USING (
+        fn_get_caller_role() IN ('admin', 'staff')
+        OR (fn_get_caller_role() = 'student' AND athlete_id IN (
+            SELECT a.id FROM athletes a
+            JOIN users u ON a.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        ))
+        OR (fn_get_caller_role() = 'coach' AND coach_id IN (
+            SELECT c.id FROM coaches c
+            JOIN users u ON c.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        ))
+    );
+CREATE POLICY "borrowing_transactions: admin/staff manage" ON borrowing_transactions FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "borrowing_items: role-filtered read" ON borrowing_items FOR SELECT
+    USING (
+        fn_get_caller_role() IN ('admin', 'staff')
+        OR (fn_get_caller_role() = 'student' AND transaction_id IN (
+            SELECT bt.id FROM borrowing_transactions bt
+            JOIN athletes a ON bt.athlete_id = a.id
+            JOIN users u ON a.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        ))
+        OR (fn_get_caller_role() = 'coach' AND transaction_id IN (
+            SELECT bt.id FROM borrowing_transactions bt
+            JOIN coaches c ON bt.coach_id = c.id
+            JOIN users u ON c.user_id = u.id
+            WHERE u.user_auth_id = auth.uid()
+        ))
+    );
+CREATE POLICY "borrowing_items: admin/staff manage" ON borrowing_items FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "maintenance_records: admin/staff/coach read" ON maintenance_records FOR SELECT
+    USING (fn_get_caller_role() IN ('admin', 'staff', 'coach'));
+CREATE POLICY "maintenance_records: admin/staff manage" ON maintenance_records FOR ALL
+    USING (fn_get_caller_role() IN ('admin', 'staff'));
+
+CREATE POLICY "audit_logs: admin only" ON audit_logs FOR ALL
+    USING (fn_get_caller_role() = 'admin');
 
 -- 6. REALISTIC UNIVERSITY SEED DATA
 -- ============================================================================

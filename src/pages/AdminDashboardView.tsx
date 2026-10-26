@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { mockDb } from '../services/mockData';
+import { dashboardApi } from '../services/dashboardApi';
 import { RegisteredAccount, BorrowingTransaction, CoachBooking, StaffReport } from '../types/database';
 
 interface AdminDashboardViewProps {
@@ -41,28 +41,60 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [activeUserTab, setActiveUserTab] = useState<'all' | 'staff' | 'coach' | 'student'>('all');
   const [userRemovalError, setUserRemovalError] = useState<string | null>(null);
 
-  const loadData = () => {
-    setRegisteredUsers(mockDb.getRegisteredUsers());
-    setTransactions([...mockDb.borrowingTransactions]);
-    setBookings([...mockDb.coachBookings]);
-    setReports([...mockDb.staffReports]);
+  const loadData = async () => {
+    try {
+      const data = await dashboardApi.getData();
+      setRegisteredUsers(data.users);
+      setTransactions(data.transactions);
+      setBookings(data.bookings);
+      setReports(data.reports);
+    } catch (error: unknown) {
+      window.alert(error instanceof Error ? error.message : 'Could not load administrator data.');
+    }
   };
 
   useEffect(() => {
-    loadData();
-    const unsub = mockDb.subscribe(loadData);
-    return unsub;
+    void loadData();
+
+    // Shield Admin page from inspection shortcuts and right-click inspect
+    const blockInspect = (e: KeyboardEvent) => {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        (e.ctrlKey && (e.key === 'u' || e.key === 'U'))
+      ) {
+        e.preventDefault();
+      }
+    };
+    const blockContextMenu = (e: MouseEvent) => e.preventDefault();
+
+    window.addEventListener('keydown', blockInspect);
+    window.addEventListener('contextmenu', blockContextMenu);
+    return () => {
+      window.removeEventListener('keydown', blockInspect);
+      window.removeEventListener('contextmenu', blockContextMenu);
+    };
   }, []);
 
-  const handleResolveReport = (reportId: string) => {
-    mockDb.updateStaffReportStatus(reportId, 'resolved');
+  const handleResolveReport = async (reportId: string) => {
+    try {
+      await dashboardApi.updateReportStatus(reportId, 'resolved');
+      await loadData();
+    } catch (error: unknown) {
+      window.alert(error instanceof Error ? error.message : 'Could not update report.');
+    }
   };
 
-  const handleAcknowledgeReport = (reportId: string) => {
-    mockDb.updateStaffReportStatus(reportId, 'reviewed');
+  const handleAcknowledgeReport = async (reportId: string) => {
+    try {
+      await dashboardApi.updateReportStatus(reportId, 'reviewed');
+      await loadData();
+    } catch (error: unknown) {
+      window.alert(error instanceof Error ? error.message : 'Could not update report.');
+    }
   };
 
-  const handleRemoveUser = (user: RegisteredAccount) => {
+  const handleRemoveUser = async (user: RegisteredAccount) => {
     const confirmed = window.confirm(
       `Remove ${user.full_name} (${user.role}) from the system? They will no longer be able to log in.`
     );
@@ -70,9 +102,19 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
     setUserRemovalError(null);
     try {
-      mockDb.removeRegisteredUser(user.id);
+      await dashboardApi.updateUser(user.id, 'disable');
+      await loadData();
     } catch (error: unknown) {
       setUserRemovalError(error instanceof Error ? error.message : 'Could not remove this account.');
+    }
+  };
+
+  const handleVerifyUser = async (userId: string) => {
+    try {
+      await dashboardApi.updateUser(userId, 'verify');
+      await loadData();
+    } catch (error: unknown) {
+      window.alert(error instanceof Error ? error.message : 'Could not verify this account.');
     }
   };
 
@@ -391,7 +433,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                         <button
                           type="button"
                           className="btn btn-sm btn-success"
-                          onClick={() => mockDb.verifyRegisteredUser(user.id)}
+                          onClick={() => void handleVerifyUser(user.id)}
                         >
                           <i className="bi bi-check-circle me-1"></i>Verify
                         </button>

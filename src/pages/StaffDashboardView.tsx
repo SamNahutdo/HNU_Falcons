@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
-import { mockDb } from '../services/mockData';
+import { dashboardApi } from '../services/dashboardApi';
 import {
   Equipment,
   BorrowingTransaction,
   CoachBooking,
   StaffReport,
-  RegisteredAccount
+  RegisteredAccount,
+  Sport
 } from '../types/database';
 
 interface StaffDashboardViewProps {
@@ -18,7 +19,7 @@ interface StaffDashboardViewProps {
 
 const ALL_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisplayName, currentTab = 'equipment' }) => {
+export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentTab = 'equipment' }) => {
   // Navigation driven by Sidebar
   const effectiveTab =
     currentTab === 'borrowing' ? 'loans' :
@@ -27,6 +28,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
 
   // Database states
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [sports, setSports] = useState<Sport[]>([]);
   const [transactions, setTransactions] = useState<BorrowingTransaction[]>([]);
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [registeredBorrowers, setRegisteredBorrowers] = useState<RegisteredAccount[]>([]);
@@ -68,20 +70,22 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
   const [repDescription, setRepDescription] = useState('');
   const [repSeverity, setRepSeverity] = useState<'low' | 'medium' | 'high' | 'critical'>('medium');
 
-  const loadAll = () => {
-    setEquipmentList([...mockDb.equipment]);
-    setTransactions([...mockDb.borrowingTransactions]);
-    setBookings([...mockDb.coachBookings]);
-    setReports([...mockDb.staffReports]);
-    setRegisteredBorrowers(
-      mockDb.getRegisteredUsers().filter(u => u.role === 'student' || u.role === 'coach')
-    );
+  const loadAll = async () => {
+    try {
+      const data = await dashboardApi.getData();
+      setEquipmentList(data.equipment);
+      setSports(data.sports);
+      setTransactions(data.transactions);
+      setBookings(data.bookings);
+      setReports(data.reports);
+      setRegisteredBorrowers(data.users.filter(user => user.is_verified && user.status === 'active'));
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not load staff dashboard data.');
+    }
   };
 
   useEffect(() => {
-    loadAll();
-    const unsub = mockDb.subscribe(loadAll);
-    return unsub;
+    void loadAll();
   }, []);
 
   const showToast = (msg: string) => {
@@ -90,97 +94,114 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
   };
 
   // 1. Alert Student or Coach regarding return deadline
-  const handleSendAlert = (tx: BorrowingTransaction) => {
-    const alert = mockDb.sendReturnAlert(
-      tx.id,
-      tx.borrower_name || 'Borrower',
-      tx.borrower_school_id || tx.athlete_id,
-      tx.borrower_role || 'student',
-      tx.items?.[0]?.equipment?.name || tx.remarks || 'Sports Gear',
-      tx.expected_return_date
-    );
-    showToast(`Return alert sent to ${alert.recipient_name} (${alert.recipient_school_id})`);
+  const handleSendAlert = async (tx: BorrowingTransaction) => {
+    try {
+      await dashboardApi.sendReturnAlert(
+        tx.id,
+        `Please return ${tx.items?.map(item => item.equipment?.name).filter(Boolean).join(', ') || 'borrowed sports equipment'} by ${tx.expected_return_date}.`
+      );
+      showToast(`Return alert sent to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''})`);
+      await loadAll();
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not send return alert.');
+    }
   };
 
   // 2. Process Return
-  const handleReturnItem = (txId: string) => {
-    mockDb.returnBorrowedItems(txId, 'good');
-    showToast('Equipment marked returned and stock replenished.');
+  const handleReturnItem = async (txId: string) => {
+    try {
+      await dashboardApi.returnLoan(txId);
+      await loadAll();
+      showToast('Equipment marked returned and stock replenished.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not process equipment return.');
+    }
   };
 
   // 3. Equipment CRUD: Add
-  const handleCreateEquipment = (e: React.FormEvent) => {
+  const handleCreateEquipment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEqName.trim() || !newEqCode.trim()) return;
 
-    mockDb.addEquipment({
-      sport_id: 'spt-1',
-      equipment_code: newEqCode.trim().toUpperCase(),
-      name: newEqName.trim(),
-      category: newEqCategory,
-      total_quantity: Number(newEqQuantity),
-      available_quantity: Number(newEqQuantity),
-      condition: newEqCondition,
-      status: 'available',
-      available_days: newEqDays.length > 0 ? newEqDays : ALL_DAYS
-    });
-
-    setIsAddEqOpen(false);
-    setNewEqName('');
-    setNewEqCode('');
-    showToast('New sports equipment added to inventory.');
+    if (!sports[0]) {
+      showToast('No sport categories are available. Ask an administrator to configure sports first.');
+      return;
+    }
+    try {
+      await dashboardApi.createEquipment({
+        sport_id: sports[0].id,
+        equipment_code: newEqCode.trim().toUpperCase(),
+        name: newEqName.trim(),
+        category: newEqCategory,
+        total_quantity: Number(newEqQuantity),
+        condition: newEqCondition,
+        available_days: newEqDays.length > 0 ? newEqDays : ALL_DAYS
+      });
+      setIsAddEqOpen(false);
+      setNewEqName('');
+      setNewEqCode('');
+      await loadAll();
+      showToast('New sports equipment added to inventory.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not add equipment.');
+    }
   };
 
   // 4. Equipment CRUD: Update
-  const handleSaveEditEquipment = (e: React.FormEvent) => {
+  const handleSaveEditEquipment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEq) return;
 
-    mockDb.updateEquipment(editingEq.id, {
-      name: editingEq.name,
-      equipment_code: editingEq.equipment_code,
-      total_quantity: Number(editingEq.total_quantity),
-      available_quantity: Math.min(Number(editingEq.total_quantity), editingEq.available_quantity),
-      condition: editingEq.condition,
-      available_days: editingEq.available_days
-    });
-
-    setEditingEq(null);
-    showToast('Equipment updated successfully.');
+    try {
+      await dashboardApi.updateEquipment(editingEq.id, {
+        name: editingEq.name,
+        equipment_code: editingEq.equipment_code,
+        category: editingEq.category,
+        total_quantity: Number(editingEq.total_quantity),
+        condition: editingEq.condition,
+        available_days: editingEq.available_days
+      });
+      setEditingEq(null);
+      await loadAll();
+      showToast('Equipment updated successfully.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not update equipment.');
+    }
   };
 
   // 5. Equipment CRUD: Delete
-  const handleDeleteEquipment = (id: string, name: string) => {
+  const handleDeleteEquipment = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete "${name}" from inventory?`)) {
       try {
-        mockDb.deleteEquipment(id);
+        await dashboardApi.retireEquipment(id);
+        await loadAll();
         showToast('Equipment item deleted.');
-      } catch (err: unknown) {
-        showToast(err instanceof Error ? err.message : 'Cannot delete item.');
+      } catch (error: unknown) {
+        showToast(error instanceof Error ? error.message : 'Cannot remove item.');
       }
     }
   };
 
   // 6. Check Condition / Log Issue
-  const handleSaveConditionInspection = (e: React.FormEvent) => {
+  const handleSaveConditionInspection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inspectingEq) return;
 
-    mockDb.updateEquipment(inspectingEq.id, {
-      condition: inspectingEq.condition,
-      condition_notes: inspectingEq.condition_notes,
-      last_inspected: new Date().toISOString().split('T')[0],
-      status: inspectingEq.condition === 'damaged' || inspectingEq.condition === 'needs_maintenance'
-        ? 'under_maintenance'
-        : 'available'
-    });
-
-    setInspectingEq(null);
-    showToast('Equipment condition inspection logged.');
+    try {
+      await dashboardApi.updateEquipment(inspectingEq.id, {
+        condition: inspectingEq.condition,
+        condition_notes: inspectingEq.condition_notes
+      });
+      setInspectingEq(null);
+      await loadAll();
+      showToast('Equipment condition inspection logged.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not save equipment inspection.');
+    }
   };
 
   // 7. Issue Direct Checkout
-  const handleExecuteCheckout = (e: React.FormEvent) => {
+  const handleExecuteCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     const borrower = registeredBorrowers.find(b => b.school_id === loanBorrowerSchoolId);
     if (!borrower || !loanEquipmentId || !loanReturnDate) {
@@ -189,19 +210,18 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
     }
 
     try {
-      mockDb.borrowEquipmentDirect(
-        borrower.full_name,
-        borrower.role as 'student' | 'coach',
-        borrower.school_id,
-        loanEquipmentId,
-        Number(loanQuantity),
-        loanReturnDate,
-        loanRemarks.trim() || 'Staff Desk Direct Issue'
-      );
+      await dashboardApi.createLoan({
+        borrower_school_id: borrower.school_id,
+        equipment_id: loanEquipmentId,
+        quantity: Number(loanQuantity),
+        expected_return_date: loanReturnDate,
+        remarks: loanRemarks.trim() || 'Staff Desk Direct Issue'
+      });
       setIsCheckoutOpen(false);
       setLoanBorrowerSchoolId('');
       setLoanEquipmentId('');
       setLoanRemarks('');
+      await loadAll();
       showToast('Equipment issued successfully.');
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Checkout failed.');
@@ -209,7 +229,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
   };
 
   // 8. Submit Report to Admin (Damaged equipment or Overdue return)
-  const handleSubmitReport = (e: React.FormEvent) => {
+  const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
     const borrower = registeredBorrowers.find(b => b.school_id === repBorrowerSchoolId);
     const eq = equipmentList.find(item => item.id === repEquipmentId);
@@ -219,21 +239,40 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
       return;
     }
 
-    mockDb.submitStaffReport({
-      report_type: reportType,
-      item_id: eq?.id,
-      item_name: eq?.name || 'Assigned Equipment',
-      borrower_name: borrower.full_name,
-      borrower_role: borrower.role as 'student' | 'coach',
-      borrower_school_id: borrower.school_id,
-      reported_by: userDisplayName || 'Staff Desk',
-      description: repDescription.trim(),
-      severity: repSeverity
-    });
+    try {
+      await dashboardApi.createReport({
+        report_type: reportType,
+        borrower_school_id: borrower.school_id,
+        item_id: eq?.id,
+        description: repDescription.trim(),
+        severity: repSeverity
+      });
+      setIsReportOpen(false);
+      setRepDescription('');
+      await loadAll();
+      showToast('Report submitted directly to Admin.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not submit report.');
+    }
+  };
 
-    setIsReportOpen(false);
-    setRepDescription('');
-    showToast('Report submitted directly to Admin.');
+  const handleTogglePresence = async (userId: string) => {
+    try {
+      await dashboardApi.updateUser(userId, 'toggle_presence');
+      await loadAll();
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not update account presence.');
+    }
+  };
+
+  const handleApproveBooking = async (bookingId: string) => {
+    try {
+      await dashboardApi.updateBookingStatus(bookingId, 'approved', 'Approved by Staff Operations Desk');
+      await loadAll();
+      showToast('Booking approved.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not approve booking.');
+    }
   };
 
   // Filtered equipment by search and available day
@@ -587,7 +626,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
 
                       <button
                         type="button"
-                        onClick={() => mockDb.toggleOnlineStatus(b.school_id)}
+                        onClick={() => void handleTogglePresence(b.id)}
                         className="btn btn-sm btn-link text-muted p-0 ms-1"
                         title="Toggle presence simulation"
                       >
@@ -662,10 +701,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ userDisp
                       {b.status === 'pending' && (
                         <button
                           type="button"
-                          onClick={() => {
-                            mockDb.updateCoachBookingStatus(b.id, 'approved', 'Approved by Staff Operations Desk');
-                            showToast('Booking approved.');
-                          }}
+                          onClick={() => void handleApproveBooking(b.id)}
                           className="btn btn-sm btn-success"
                           style={{ borderRadius: '8px', fontSize: '0.78rem' }}
                         >

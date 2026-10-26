@@ -15,11 +15,11 @@
 // then starts listening. ZERO presentation logic or HTML lives here.
 // =============================================================================
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 
 import { authRouter } from './routes/auth.routes';
 import { equipmentRouter } from './routes/equipment.routes';
@@ -27,10 +27,10 @@ import { transactionRouter } from './routes/transaction.routes';
 import { maintenanceRouter } from './routes/maintenance.routes';
 import { auditRouter } from './routes/audit.routes';
 import { reportsRouter } from './routes/reports.routes';
+import { dashboardRouter } from './routes/dashboard.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 // ─── Environment ──────────────────────────────────────────────────────────────
-dotenv.config();
 const PORT = process.env.PORT || 4000;
 
 // ─── Express App ──────────────────────────────────────────────────────────────
@@ -80,6 +80,7 @@ app.use('/api/transactions', transactionRouter);
 app.use('/api/maintenance',  maintenanceRouter);
 app.use('/api/audit-logs',   auditRouter);
 app.use('/api/reports',      reportsRouter);
+app.use('/api/dashboard',    dashboardRouter);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -99,7 +100,10 @@ app.use((_req, res) => {
     'PUT  /api/maintenance/:id     [admin, staff]',
     'GET  /api/audit-logs          [admin]',
     'GET  /api/reports/inventory',
-    'GET  /api/reports/overdue'
+    'GET  /api/reports/overdue',
+    'GET  /api/dashboard',
+    'POST /api/dashboard/loans',
+    'POST /api/dashboard/bookings'
   ]});
 });
 

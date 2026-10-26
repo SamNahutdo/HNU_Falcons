@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
-import { mockDb } from '../services/mockData';
+import { dashboardApi } from '../services/dashboardApi';
 import { Equipment, CoachBooking, Coach, ReturnAlert, BorrowingTransaction } from '../types/database';
 
 interface StudentDashboardViewProps {
@@ -10,7 +10,7 @@ interface StudentDashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ userDisplayName, username, currentTab = 'equipment', onNavigate }) => {
+export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ currentTab = 'equipment', onNavigate }) => {
   const effectiveTab =
     currentTab === 'bookings' ? 'book_coach' :
     currentTab === 'activity' ? 'my_activity' : 'available_items';
@@ -40,41 +40,22 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const loadData = () => {
-    setEquipmentList([...mockDb.equipment]);
-    setCoaches([...mockDb.coaches]);
-
-    // Student's bookings
-    setMyBookings(
-      mockDb.coachBookings.filter(
-        b => b.student_name.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             b.student_school_id === '202400101' ||
-             b.student_id === username
-      )
-    );
-
-    // Student's loans
-    setMyLoans(
-      mockDb.borrowingTransactions.filter(
-        t => t.borrower_name?.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             t.borrower_school_id === '202400101'
-      )
-    );
-
-    // Student's alerts from staff
-    setMyAlerts(
-      mockDb.returnAlerts.filter(
-        a => a.recipient_name.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             a.recipient_school_id === '202400101'
-      )
-    );
+  const loadData = async () => {
+    try {
+      const data = await dashboardApi.getData();
+      setEquipmentList(data.equipment);
+      setCoaches(data.coaches);
+      setMyBookings(data.bookings);
+      setMyLoans(data.transactions);
+      setMyAlerts(data.alerts);
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not load dashboard data.');
+    }
   };
 
   useEffect(() => {
-    loadData();
-    const unsub = mockDb.subscribe(loadData);
-    return unsub;
-  }, [userDisplayName, username]);
+    void loadData();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -82,7 +63,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
   };
 
   // Student borrowing item
-  const handleBorrowSubmit = (e: React.FormEvent) => {
+  const handleBorrowSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!borrowModalEq || !borrowReturnDate) {
       showToast('Please select a return date.');
@@ -90,18 +71,16 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     }
 
     try {
-      mockDb.borrowEquipmentDirect(
-        userDisplayName || 'Student Athlete',
-        'student',
-        '202400101',
-        borrowModalEq.id,
-        Number(borrowQty),
-        borrowReturnDate,
-        borrowPurpose.trim() || 'Student athletic practice'
-      );
+      await dashboardApi.createLoan({
+        equipment_id: borrowModalEq.id,
+        quantity: Number(borrowQty),
+        expected_return_date: borrowReturnDate,
+        remarks: borrowPurpose.trim() || 'Student athletic practice'
+      });
       setBorrowModalEq(null);
       setBorrowPurpose('');
       showToast(`Borrow request completed for ${borrowQty}x ${borrowModalEq.name}.`);
+      await loadData();
       if (onNavigate) onNavigate('activity');
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Borrow request failed.');
@@ -109,33 +88,31 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
   };
 
   // Student booking a coach
-  const handleCoachBookingSubmit = (e: React.FormEvent) => {
+  const handleCoachBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bookingModalCoach || !bookDate) {
       showToast('Please select a date.');
       return;
     }
 
-    const coachUser = (bookingModalCoach as any).user || mockDb.users.find(u => u.id === bookingModalCoach.user_id) || mockDb.registeredAccounts.find(u => u.id === bookingModalCoach.user_id);
-    const coachName = coachUser?.full_name || 'Varsity Coach';
-
-    mockDb.createCoachBooking({
-      student_id: username || 'student-user',
-      student_name: userDisplayName || 'Riza Velasco',
-      student_school_id: '202400101',
+    const coachName = bookingModalCoach.user?.full_name || 'Varsity Coach';
+    try {
+      await dashboardApi.createBooking({
       coach_id: bookingModalCoach.id,
-      coach_name: coachName,
-      coach_school_id: bookingModalCoach.employee_number,
       sport: bookingModalCoach.specialization.split('&')[0].trim(),
       booking_date: bookDate,
       time_slot: bookTimeSlot,
       purpose: bookPurpose.trim() || 'Varsity skills training and mechanics review'
-    });
+      });
 
-    setBookingModalCoach(null);
-    setBookPurpose('');
-    showToast(`Booking submitted to ${coachName}. Awaiting coach approval.`);
-    if (onNavigate) onNavigate('activity');
+      setBookingModalCoach(null);
+      setBookPurpose('');
+      showToast(`Booking submitted to ${coachName}. Awaiting coach approval.`);
+      await loadData();
+      if (onNavigate) onNavigate('activity');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Booking request failed.');
+    }
   };
 
   const filteredEquipment = equipmentList.filter(eq => {
@@ -145,7 +122,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     return matchesSearch && matchesCat && eq.available_quantity > 0;
   });
   const filteredCoaches = coaches.filter(coach => {
-    const coachName = mockDb.users.find(user => user.id === coach.user_id)?.full_name || '';
+    const coachName = coach.user?.full_name || '';
     const query = searchQuery.trim().toLowerCase();
     return !query ||
       coachName.toLowerCase().includes(query) ||
@@ -307,7 +284,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
 
           <div className="row g-4">
             {filteredCoaches.map(c => {
-              const coachUser = (c as any).user || mockDb.users.find(u => u.id === c.user_id) || mockDb.registeredAccounts.find(u => u.id === c.user_id);
               return (
                 <div key={c.id} className="col-12 col-md-6">
                   <div
@@ -324,7 +300,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
                         </span>
                       </div>
 
-                      <h5 className="fw-bold text-dark mb-1">{coachUser?.full_name || 'Varsity Coach'}</h5>
+                      <h5 className="fw-bold text-dark mb-1">{c.user?.full_name || 'Varsity Coach'}</h5>
                       <div className="text-secondary small mb-3">{c.license_level}</div>
 
                       {/* AVAILABILITY SCHEDULE */}
@@ -567,7 +543,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
               <form onSubmit={handleCoachBookingSubmit}>
                 <div className="modal-body">
                   <p className="fw-semibold text-dark mb-1">
-                    {mockDb.users.find(u => u.id === bookingModalCoach.user_id)?.full_name || 'Coach'}
+                    {bookingModalCoach.user?.full_name || 'Coach'}
                   </p>
                   <small className="text-muted d-block mb-3">{bookingModalCoach.specialization}</small>
 

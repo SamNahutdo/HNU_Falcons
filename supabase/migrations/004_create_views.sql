@@ -12,7 +12,7 @@
 -- ─── VIEW 1: vw_active_loans_summary ─────────────────────────────────────────
 -- Used by: admin dashboard, overdue alert panel, /api/reports/overdue endpoint
 -- Provides: active loan details, overdue day count, urgency label
-CREATE OR REPLACE VIEW vw_active_loans_summary AS
+CREATE OR REPLACE VIEW vw_active_loans_summary WITH (security_invoker = true) AS
 SELECT
     bt.id                                           AS transaction_id,
     bt.borrow_date,
@@ -65,7 +65,7 @@ GROUP BY
 -- ─── VIEW 2: vw_equipment_inventory_status ───────────────────────────────────
 -- Used by: equipment dashboard, inventory alerts, /api/reports/inventory endpoint
 -- Provides: utilization rates, active loan count, maintenance count, health label
-CREATE OR REPLACE VIEW vw_equipment_inventory_status AS
+CREATE OR REPLACE VIEW vw_equipment_inventory_status WITH (security_invoker = true) AS
 SELECT
     e.id                                            AS equipment_id,
     e.equipment_code,

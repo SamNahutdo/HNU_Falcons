@@ -25,7 +25,6 @@ export interface RegisteredAccount {
   school_id: string;
   full_name: string;
   username: string;
-  password?: string;
   role: UserRole;
   department?: string;
   specialization?: string;
@@ -111,7 +110,8 @@ export interface Equipment {
 
 export interface BorrowingTransaction {
   id: string;
-  athlete_id: string;
+  athlete_id: string | null;
+  coach_id?: string | null;
   borrower_name?: string;
   borrower_role?: 'student' | 'coach';
   borrower_school_id?: string;
@@ -123,6 +123,7 @@ export interface BorrowingTransaction {
   remarks: string | null;
   created_at: string;
   athlete?: Athlete;
+  coach?: Coach;
   approver?: User;
   items?: BorrowingItem[];
   alert_sent?: boolean;
@@ -188,6 +189,17 @@ export interface ReturnAlert {
   message: string;
   sent_at: string;
   is_read: boolean;
+}
+
+export interface DashboardData {
+  equipment: Equipment[];
+  sports: Sport[];
+  coaches: Coach[];
+  transactions: BorrowingTransaction[];
+  bookings: CoachBooking[];
+  alerts: ReturnAlert[];
+  reports: StaffReport[];
+  users: RegisteredAccount[];
 }
 
 export interface MaintenanceRecord {

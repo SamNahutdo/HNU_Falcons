@@ -10,66 +10,50 @@ import { CoachDashboardView } from './pages/CoachDashboardView';
 import { StudentDashboardView } from './pages/StudentDashboardView';
 
 import { UserRole } from './types/database';
-
-const PORTAL_SESSION_KEY = 'falcon_portal_session';
-
-interface PortalSession {
-  role: UserRole;
-  displayName: string;
-  username: string;
-  currentTab: string;
-}
-
-const isUserRole = (role: unknown): role is UserRole =>
-  role === 'admin' || role === 'staff' || role === 'coach' || role === 'student';
-
-const getPortalSession = (): PortalSession | null => {
-  const savedSession = sessionStorage.getItem(PORTAL_SESSION_KEY);
-  if (!savedSession) return null;
-
-  try {
-    const session: unknown = JSON.parse(savedSession);
-    if (
-      typeof session === 'object' &&
-      session !== null &&
-      'role' in session &&
-      isUserRole(session.role) &&
-      'displayName' in session &&
-      typeof session.displayName === 'string' &&
-      'username' in session &&
-      typeof session.username === 'string' &&
-      'currentTab' in session &&
-      typeof session.currentTab === 'string'
-    ) {
-      return {
-        role: session.role,
-        displayName: session.displayName,
-        username: session.username,
-        currentTab: session.currentTab
-      };
-    }
-  } catch {
-    sessionStorage.removeItem(PORTAL_SESSION_KEY);
-  }
-
-  return null;
-};
+import { authService } from './services/supabase';
 
 export const App: React.FC = () => {
-  const [initialSession] = useState(getPortalSession);
-  const [showIntro, setShowIntro] = useState<boolean>(() => !initialSession);
-
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => Boolean(initialSession));
+  const [showIntro, setShowIntro] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isDashboardLoading, setIsDashboardLoading] = useState(false);
-  const [currentRole, setCurrentRole] = useState<UserRole>(() => initialSession?.role || 'admin');
-  const [userDisplayName, setUserDisplayName] = useState<string>(() => initialSession?.displayName || "Ma'am Arbe");
-  const [username, setUsername] = useState<string>(() => initialSession?.username || 'arbe');
+  const [currentRole, setCurrentRole] = useState<UserRole>('student');
+  const [userDisplayName, setUserDisplayName] = useState('');
+  const [username, setUsername] = useState('');
   const [justLoggedOut, setJustLoggedOut] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Navigation
-  const [currentTab, setCurrentTab] = useState<string>(() => initialSession?.currentTab || 'dashboard');
+  const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState<boolean>(false);
+
+  useEffect(() => {
+    let active = true;
+    sessionStorage.removeItem('falcon_portal_session');
+    authService.getCurrentProfile()
+      .then(profile => {
+        if (!active || !profile) return;
+        setCurrentRole(profile.role);
+        setUserDisplayName(profile.fullName);
+        setUsername(profile.email);
+        setCurrentTab(profile.role === 'staff' || profile.role === 'student' ? 'equipment' : 'dashboard');
+        setIsLoggedIn(true);
+        setShowIntro(false);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setAuthError(error instanceof Error
+            ? error.message
+            : 'Could not verify the saved sign-in. Please sign in again.');
+        }
+      })
+      .finally(() => {
+        if (active) setIsAuthLoading(false);
+      });
+
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!isDashboardLoading) return;
@@ -81,18 +65,11 @@ export const App: React.FC = () => {
   const handleNavigate = (tab: string) => {
     setCurrentTab(tab);
     setSearchTerm('');
-    if (isLoggedIn) {
-      sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
-        role: currentRole,
-        displayName: userDisplayName,
-        username,
-        currentTab: tab
-      }));
-    }
   };
 
   const handleLogin = (role: UserRole, displayName: string, uname: string) => {
     setIsDashboardLoading(true);
+    setAuthError(null);
     setCurrentRole(role);
     setUserDisplayName(displayName);
     setUsername(uname);
@@ -100,19 +77,20 @@ export const App: React.FC = () => {
     setJustLoggedOut(false);
     const tab = role === 'staff' || role === 'student' ? 'equipment' : 'dashboard';
     setCurrentTab(tab);
-    sessionStorage.setItem(PORTAL_SESSION_KEY, JSON.stringify({
-      role,
-      displayName,
-      username: uname,
-      currentTab: tab
-    }));
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem(PORTAL_SESSION_KEY);
     setIsLoggedIn(false);
     setJustLoggedOut(true);
+    setShowIntro(false);
+    authService.signOut().catch((error: unknown) => {
+      setAuthError(error instanceof Error ? error.message : 'Could not sign out.');
+    });
   };
+
+  if (isAuthLoading) {
+    return <div className="login-page-wrapper" role="status">Verifying your sign-in…</div>;
+  }
 
   // 1 & 2: Render LoginView always underneath; IntroAnimation sits on top as a fixed overlay.
   // This prevents the white flash — login page is already painted when intro fades out.
@@ -120,7 +98,11 @@ export const App: React.FC = () => {
     return (
       <div style={{ position: 'relative' }}>
         {/* Login page always rendered beneath */}
-        <LoginView onLogin={handleLogin} loggedOutNotice={justLoggedOut} />
+        <LoginView
+          onLogin={handleLogin}
+          loggedOutNotice={justLoggedOut}
+          initialError={authError}
+        />
         {/* Intro overlay sits on top; removed from DOM after complete */}
         {showIntro && (
           <IntroAnimation onComplete={() => setShowIntro(false)} />

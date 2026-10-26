@@ -1,5 +1,4 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { mockDb } from './mockData';
 import {
   Equipment,
   Sport,
@@ -12,7 +11,8 @@ import {
   EquipmentInventoryStatusView,
   MaintenanceRecord,
   BorrowingTransaction,
-  BorrowingItem
+  BorrowingItem,
+  UserRole
 } from '../types/database';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,9 +28,9 @@ export function getSupabaseCredentials(): { url: string; anonKey: string; isLive
 // ─────────────────────────────────────────────────────────────────────────────
 // Singleton client
 // ─────────────────────────────────────────────────────────────────────────────
-let supabaseClient: SupabaseClient | null = null;
+export let supabaseClient: SupabaseClient | null = null;
 
-function initClient(): SupabaseClient | null {
+export function initClient(): SupabaseClient | null {
   const { url, anonKey, isLiveConfigured } = getSupabaseCredentials();
   if (isLiveConfigured) {
     try {
@@ -38,7 +38,8 @@ function initClient(): SupabaseClient | null {
         auth: {
           autoRefreshToken: true,
           persistSession: true,
-          detectSessionInUrl: true
+          detectSessionInUrl: true,
+          storage: window.sessionStorage
         }
       });
       return supabaseClient;
@@ -55,97 +56,232 @@ function initClient(): SupabaseClient | null {
 initClient();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper: throw in live mode, never fall through to mock silently
+// Helper: throw in live mode
 // ─────────────────────────────────────────────────────────────────────────────
 function liveError(context: string, err: { message: string }): never {
   throw new Error(`[Live DB error — ${context}]: ${err.message}`);
+}
+
+export function requireSupabaseClient(): SupabaseClient {
+  if (!supabaseClient) {
+    initClient();
+  }
+  if (!supabaseClient) {
+    throw new Error('Supabase is not configured. Check your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.');
+  }
+  return supabaseClient;
+}
+
+function isUserRole(role: unknown): role is UserRole {
+  return role === 'admin' || role === 'staff' || role === 'coach' || role === 'student';
+}
+
+async function getActiveProfile(authUid: string, userEmail?: string) {
+  const client = requireSupabaseClient();
+  let { data, error } = await client
+    .from('users')
+    .select('id, full_name, email, school_id, status, role:roles(name)')
+    .eq('user_auth_id', authUid)
+    .maybeSingle();
+
+  // If user_auth_id is not yet linked, link by email automatically
+  if (!data && userEmail) {
+    const { data: matchedUser } = await client
+      .from('users')
+      .select('id, full_name, email, school_id, status, role:roles(name)')
+      .ilike('email', userEmail.trim())
+      .maybeSingle();
+
+    if (matchedUser) {
+      await client
+        .from('users')
+        .update({ user_auth_id: authUid })
+        .eq('id', matchedUser.id);
+      data = matchedUser;
+    }
+  }
+
+  if (error || !data) {
+    throw new Error('Your account does not have an active application profile in the database. Contact an administrator.');
+  }
+
+  const profile = data as {
+    id: string;
+    full_name: string;
+    email: string;
+    school_id: string | null;
+    status: string;
+    role: { name: string } | { name: string }[] | null;
+  };
+  const role = Array.isArray(profile.role) ? profile.role[0]?.name : profile.role?.name;
+
+  if (profile.status !== 'active') {
+    throw new Error('Your account is pending approval or inactive. Contact an administrator.');
+  }
+  if (!isUserRole(role)) {
+    throw new Error('Your account has an invalid role. Contact an administrator.');
+  }
+
+  return {
+    userId: profile.id,
+    authUid,
+    fullName: profile.full_name,
+    email: profile.email,
+    role,
+    schoolId: profile.school_id
+  };
+}
+
+/** Resolves an ID, username, or email to the Supabase Auth registered email */
+export async function resolveIdentifierToEmail(identifier: string): Promise<string> {
+  const trimmed = identifier.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.includes('@')) return trimmed;
+
+  const client = requireSupabaseClient();
+
+  try {
+    // 1. Check users table by school_id (e.g. 'ADMIN-001', '2023-10892')
+    const { data: bySchool } = await client
+      .from('users')
+      .select('email')
+      .ilike('school_id', trimmed)
+      .limit(1);
+    if (bySchool && bySchool.length > 0 && bySchool[0].email) {
+      return bySchool[0].email;
+    }
+
+    // 2. Check coaches by employee_number (e.g. 'EMP-2018-091')
+    const { data: byCoach } = await client
+      .from('coaches')
+      .select('user:users(email)')
+      .ilike('employee_number', trimmed)
+      .limit(1);
+    if (byCoach && byCoach.length > 0) {
+      const coachUser = byCoach[0].user as { email?: string } | { email?: string }[] | null;
+      const email = Array.isArray(coachUser) ? coachUser[0]?.email : coachUser?.email;
+      if (email) return email;
+    }
+
+    // 3. Check athletes by student_number
+    const { data: byAthlete } = await client
+      .from('athletes')
+      .select('user:users(email)')
+      .ilike('student_number', trimmed)
+      .limit(1);
+    if (byAthlete && byAthlete.length > 0) {
+      const athleteUser = byAthlete[0].user as { email?: string } | { email?: string }[] | null;
+      const email = Array.isArray(athleteUser) ? athleteUser[0]?.email : athleteUser?.email;
+      if (email) return email;
+    }
+
+    // 4. Check users table by full_name
+    const { data: byName } = await client
+      .from('users')
+      .select('email')
+      .ilike('full_name', trimmed)
+      .limit(1);
+    if (byName && byName.length > 0 && byName[0].email) {
+      return byName[0].email;
+    }
+
+    // 5. Check users where email prefix equals username (e.g. 'admin' -> 'admin@gmail.com')
+    const { data: byPrefix } = await client
+      .from('users')
+      .select('email')
+      .ilike('email', `${trimmed}@%`)
+      .limit(1);
+    if (byPrefix && byPrefix.length > 0 && byPrefix[0].email) {
+      return byPrefix[0].email;
+    }
+  } catch (err) {
+    console.warn('[FARE-ERP] Could not resolve identifier via Supabase:', err);
+  }
+
+  return trimmed;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AUTHENTICATION SERVICE  (Supabase Auth)
 // ─────────────────────────────────────────────────────────────────────────────
 export const authService = {
-  /**
-   * Sign in with email/username + password.
-   * Checks Supabase Auth if available, otherwise seamlessly validates against local registered accounts.
-   */
-  async signIn(email: string, password: string): Promise<{
+  /** Sign in using ID, username, or email */
+  async signIn(identifier: string, password: string): Promise<{
     userId: string;
     authUid: string;
     fullName: string;
-    role: string;
+    email: string;
+    role: UserRole;
     schoolId: string | null;
   }> {
-    // 1. If live Supabase client exists, attempt authentication
-    if (supabaseClient) {
-      try {
-        const { data: authData, error: authErr } = await supabaseClient.auth.signInWithPassword({
-          email,
-          password
-        });
-        if (!authErr && authData?.user) {
-          const { data: profile } = await supabaseClient
-            .from('users')
-            .select('id, full_name, school_id, status, role:roles(name)')
-            .eq('user_auth_id', authData.user.id)
-            .single();
+    const client = requireSupabaseClient();
+    const resolvedEmail = await resolveIdentifierToEmail(identifier);
 
-          if (profile) {
-            const p = profile as any;
-            if (p.status === 'active') {
-              const roleName = Array.isArray(p.role) ? p.role[0]?.name : p.role?.name || 'student';
-              return {
-                userId: p.id,
-                authUid: authData.user.id,
-                fullName: p.full_name,
-                role: roleName,
-                schoolId: p.school_id
-              };
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('[Supabase Auth fallback]', e);
-      }
+    const { data, error } = await client.auth.signInWithPassword({
+      email: resolvedEmail,
+      password
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message || 'Invalid credentials. Please verify your ID, username, or email and password.');
     }
 
-    // 2. Seamless fallback to local registered accounts (mockDb)
-    const normalizedInput = email.trim().toLowerCase();
-    const mockUser = mockDb.getRegisteredUsers().find(u =>
-      u.username.toLowerCase() === normalizedInput ||
-      u.school_id.toLowerCase() === normalizedInput ||
-      (u.full_name && u.full_name.toLowerCase() === normalizedInput) ||
-      `${u.username}@falcons.edu.ph`.toLowerCase() === normalizedInput ||
-      `${u.username}@example.com`.toLowerCase() === normalizedInput ||
-      ((u as any).email && (u as any).email.toLowerCase() === normalizedInput)
-    );
-
-    if (mockUser) {
-      if (mockUser.password && mockUser.password !== password) {
-        throw new Error('Invalid password. Please check your credentials.');
-      }
-      if ((mockUser.status as string) === 'inactive' || mockUser.is_verified === false) {
-        throw new Error('Your account is pending admin approval. Contact your administrator.');
-      }
-      return {
-        userId: mockUser.id,
-        authUid: mockUser.id,
-        fullName: mockUser.full_name,
-        role: mockUser.role,
-        schoolId: mockUser.school_id
-      };
+    try {
+      return await getActiveProfile(data.user.id, data.user.email);
+    } catch (profileError) {
+      await client.auth.signOut({ scope: 'local' });
+      throw profileError;
     }
+  },
 
-    throw new Error('Account not found. Please verify your credentials or register.');
+  async getCurrentProfile() {
+    if (!supabaseClient) initClient();
+    if (!supabaseClient) return null;
+
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) throw new Error('Could not read the saved sign-in session.');
+    if (!sessionData.session) return null;
+
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error || !data.user) {
+      await supabaseClient.auth.signOut({ scope: 'local' });
+      throw new Error('The saved sign-in could not be verified. Please sign in again.');
+    }
+    try {
+      return await getActiveProfile(data.user.id, data.user.email);
+    } catch (profileError) {
+      await supabaseClient.auth.signOut({ scope: 'local' });
+      throw profileError;
+    }
+  },
+
+  async registerStudent(email: string, password: string, fullName: string, schoolId: string) {
+    const client = requireSupabaseClient();
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName, school_id: schoolId } }
+    });
+
+    if (error || !data.user) {
+      throw new Error(error?.message ?? 'Registration failed.');
+    }
+    if (data.session) {
+      const { error: signOutError } = await client.auth.signOut({ scope: 'local' });
+      if (signOutError) throw new Error('Account registered, but sign-out failed. Close the browser if this is a shared device.');
+    }
+    return { requiresEmailConfirmation: !data.session };
   },
 
   async signOut(): Promise<void> {
     if (supabaseClient) {
-      await supabaseClient.auth.signOut();
+      const { error } = await supabaseClient.auth.signOut({ scope: 'local' });
+      if (error) throw new Error('Could not end the Supabase session.');
     }
   },
 
   async getSession() {
+    if (!supabaseClient) initClient();
     if (!supabaseClient) return null;
     const { data } = await supabaseClient.auth.getSession();
     return data.session;
@@ -153,10 +289,7 @@ export const authService = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UNIFIED DATABASE SERVICE
-// IMPORTANT: When isLive() is true, ALL errors throw — never silently use mock.
-//            Mock data is only used when supabaseClient is intentionally null
-//            (i.e., .env is not configured).
+// UNIFIED DATABASE SERVICE (Direct to Supabase Cloud)
 // ─────────────────────────────────────────────────────────────────────────────
 export const databaseService = {
   isLive(): boolean {
@@ -166,180 +299,118 @@ export const databaseService = {
 
   // ── 1. SPORTS ───────────────────────────────────────────────────────────
   async getSports(): Promise<Sport[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.from('sports').select('*').order('name');
-      if (error) liveError('getSports', error);
-      return data as Sport[];
-    }
-    return mockDb.sports;
+    const client = requireSupabaseClient();
+    const { data, error } = await client.from('sports').select('*').order('name');
+    if (error) liveError('getSports', error);
+    return data as Sport[];
   },
 
   // ── 2. TEAMS ────────────────────────────────────────────────────────────
   async getTeams(): Promise<Team[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('teams')
-        .select(`*, sport:sports(*), coach:coaches(*, user:users(*))`)
-        .order('team_name');
-      if (error) liveError('getTeams', error);
-      return data as Team[];
-    }
-    return mockDb.teams.map(t => ({
-      ...t,
-      sport: mockDb.sports.find(s => s.id === t.sport_id),
-      coach: {
-        ...mockDb.coaches.find(c => c.id === t.coach_id)!,
-        user: mockDb.users.find(u => u.id === mockDb.coaches.find(c => c.id === t.coach_id)?.user_id)
-      }
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('teams')
+      .select(`*, sport:sports(*), coach:coaches(*, user:users(*))`)
+      .order('team_name');
+    if (error) liveError('getTeams', error);
+    return data as Team[];
   },
 
-  // ── 3. TEAM MEMBERS (Junction 1) ────────────────────────────────────────
+  // ── 3. TEAM MEMBERS ─────────────────────────────────────────────────────
   async getTeamMembers(): Promise<TeamMember[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('team_members')
-        .select(`*, team:teams(*), athlete:athletes(*, user:users(*))`);
-      if (error) liveError('getTeamMembers', error);
-      return data as TeamMember[];
-    }
-    return mockDb.teamMembers.map(tm => {
-      const athlete = mockDb.athletes.find(a => a.id === tm.athlete_id);
-      return {
-        ...tm,
-        team: mockDb.teams.find(t => t.id === tm.team_id),
-        athlete: athlete
-          ? { ...athlete, user: mockDb.users.find(u => u.id === athlete.user_id) }
-          : undefined
-      };
-    });
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('team_members')
+      .select(`*, team:teams(*), athlete:athletes(*, user:users(*))`);
+    if (error) liveError('getTeamMembers', error);
+    return data as TeamMember[];
   },
 
   async addTeamMember(teamId: string, athleteId: string, position: string, jerseyNumber?: number): Promise<TeamMember> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('team_members')
-        .insert([{ team_id: teamId, athlete_id: athleteId, position, jersey_number: jerseyNumber }])
-        .select()
-        .single();
-      if (error) liveError('addTeamMember', error);
-      return data as TeamMember;
-    }
-    return mockDb.addTeamMember(teamId, athleteId, position, jerseyNumber);
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('team_members')
+      .insert([{ team_id: teamId, athlete_id: athleteId, position, jersey_number: jerseyNumber }])
+      .select()
+      .single();
+    if (error) liveError('addTeamMember', error);
+    return data as TeamMember;
   },
 
   // ── 4. ATHLETES ─────────────────────────────────────────────────────────
   async getAthletes(): Promise<Athlete[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('athletes')
-        .select(`*, user:users(*)`);
-      if (error) liveError('getAthletes', error);
-      return data as Athlete[];
-    }
-    return mockDb.athletes.map(a => ({
-      ...a,
-      user: mockDb.users.find(u => u.id === a.user_id)
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('athletes')
+      .select(`*, user:users(*)`);
+    if (error) liveError('getAthletes', error);
+    return data as Athlete[];
   },
 
   // ── 5. EQUIPMENT ────────────────────────────────────────────────────────
   async getEquipment(): Promise<Equipment[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('equipment')
-        .select(`*, sport:sports(*)`)
-        .order('name');
-      if (error) liveError('getEquipment', error);
-      return data as Equipment[];
-    }
-    return mockDb.equipment.map(e => ({
-      ...e,
-      sport: mockDb.sports.find(s => s.id === e.sport_id)
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('equipment')
+      .select(`*, sport:sports(*)`)
+      .order('name');
+    if (error) liveError('getEquipment', error);
+    return data as Equipment[];
   },
 
-  async addEquipment(eq: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>, performedBy?: string): Promise<Equipment> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('equipment')
-        .insert([eq])
-        .select()
-        .single();
-      if (error) liveError('addEquipment', error);
-      return data as Equipment;
-    }
-    return mockDb.addEquipment(eq, performedBy);
+  async addEquipment(eq: Omit<Equipment, 'id' | 'created_at' | 'updated_at'>): Promise<Equipment> {
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('equipment')
+      .insert([eq])
+      .select()
+      .single();
+    if (error) liveError('addEquipment', error);
+    return data as Equipment;
   },
 
-  async updateEquipment(id: string, updates: Partial<Equipment>, performedBy?: string): Promise<Equipment> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('equipment')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) liveError('updateEquipment', error);
-      return data as Equipment;
-    }
-    return mockDb.updateEquipment(id, updates, performedBy);
+  async updateEquipment(id: string, updates: Partial<Equipment>): Promise<Equipment> {
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('equipment')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) liveError('updateEquipment', error);
+    return data as Equipment;
   },
 
-  async deleteEquipment(id: string, performedBy?: string): Promise<void> {
-    if (this.isLive() && supabaseClient) {
-      const { error } = await supabaseClient.from('equipment').delete().eq('id', id);
-      if (error) liveError('deleteEquipment', error);
-      return;
-    }
-    mockDb.deleteEquipment(id, performedBy);
+  async deleteEquipment(id: string): Promise<void> {
+    const client = requireSupabaseClient();
+    const { error } = await client.from('equipment').delete().eq('id', id);
+    if (error) liveError('deleteEquipment', error);
   },
 
-  // ── 6. BORROWING TRANSACTIONS & ITEMS (Junction 2) ──────────────────────
+  // ── 6. BORROWING TRANSACTIONS & ITEMS ───────────────────────────────────
   async getTransactions(): Promise<BorrowingTransaction[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('borrowing_transactions')
-        .select(`
-          *,
-          athlete:athletes(*, user:users(*)),
-          approver:users(*),
-          items:borrowing_items(*, equipment:equipment(*))
-        `)
-        .order('borrow_date', { ascending: false });
-      if (error) liveError('getTransactions', error);
-      return data as BorrowingTransaction[];
-    }
-    return mockDb.borrowingTransactions.map(tx => {
-      const athlete = mockDb.athletes.find(a => a.id === tx.athlete_id);
-      return {
-        ...tx,
-        athlete: athlete
-          ? { ...athlete, user: mockDb.users.find(u => u.id === athlete.user_id) }
-          : undefined,
-        approver: tx.approved_by ? mockDb.users.find(u => u.id === tx.approved_by) : undefined,
-        items: mockDb.borrowingItems
-          .filter(i => i.transaction_id === tx.id)
-          .map(item => ({
-            ...item,
-            equipment: mockDb.equipment.find(e => e.id === item.equipment_id)
-          }))
-      };
-    });
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('borrowing_transactions')
+      .select(`
+        *,
+        athlete:athletes(*, user:users(*)),
+        coach:coaches(*, user:users(*)),
+        approver:users(*),
+        items:borrowing_items(*, equipment:equipment(*))
+      `)
+      .order('borrow_date', { ascending: false });
+    if (error) liveError('getTransactions', error);
+    return data as BorrowingTransaction[];
   },
 
   async getBorrowingItems(): Promise<BorrowingItem[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('borrowing_items')
-        .select(`*, equipment:equipment(*)`);
-      if (error) liveError('getBorrowingItems', error);
-      return data as BorrowingItem[];
-    }
-    return mockDb.borrowingItems.map(item => ({
-      ...item,
-      equipment: mockDb.equipment.find(e => e.id === item.equipment_id)
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('borrowing_items')
+      .select(`*, equipment:equipment(*)`);
+    if (error) liveError('getBorrowingItems', error);
+    return data as BorrowingItem[];
   },
 
   // ── 7. RPC: checkout_equipment ──────────────────────────────────────────
@@ -350,18 +421,16 @@ export const databaseService = {
     approvedBy?: string,
     remarks?: string
   ): Promise<{ success: boolean; transaction_id: string; message: string }> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.rpc('checkout_equipment', {
-        p_athlete_id: athleteId,
-        p_items: items,
-        p_expected_return: expectedReturnDate,
-        p_approved_by: approvedBy || null,
-        p_remarks: remarks || null
-      });
-      if (error) liveError('checkoutEquipment RPC', error);
-      return data as { success: boolean; transaction_id: string; message: string };
-    }
-    return mockDb.checkoutEquipment(athleteId, items, expectedReturnDate, approvedBy, remarks);
+    const client = requireSupabaseClient();
+    const { data, error } = await client.rpc('checkout_equipment', {
+      p_athlete_id: athleteId,
+      p_items: items,
+      p_expected_return: expectedReturnDate,
+      p_approved_by: approvedBy || null,
+      p_remarks: remarks || null
+    });
+    if (error) liveError('checkoutEquipment RPC', error);
+    return data as { success: boolean; transaction_id: string; message: string };
   },
 
   // ── 8. RPC: return_borrowed_items ───────────────────────────────────────
@@ -370,33 +439,25 @@ export const databaseService = {
     items: { item_id: string; returned_quantity: number; condition_after?: string }[],
     receivedBy?: string
   ): Promise<{ success: boolean; message: string }> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.rpc('return_borrowed_items', {
-        p_transaction_id: transactionId,
-        p_items: items,
-        p_received_by: receivedBy || null
-      });
-      if (error) liveError('returnBorrowedItems RPC', error);
-      return data as { success: boolean; message: string };
-    }
-    return mockDb.returnBorrowedItems(transactionId, items, receivedBy);
+    const client = requireSupabaseClient();
+    const { data, error } = await client.rpc('return_borrowed_items', {
+      p_transaction_id: transactionId,
+      p_items: items,
+      p_received_by: receivedBy || null
+    });
+    if (error) liveError('returnBorrowedItems RPC', error);
+    return data as { success: boolean; message: string };
   },
 
   // ── 9. MAINTENANCE ──────────────────────────────────────────────────────
   async getMaintenanceRecords(): Promise<MaintenanceRecord[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('maintenance_records')
-        .select(`*, equipment:equipment(*), reporter:users(*)`)
-        .order('created_at', { ascending: false });
-      if (error) liveError('getMaintenanceRecords', error);
-      return data as MaintenanceRecord[];
-    }
-    return mockDb.maintenanceRecords.map(m => ({
-      ...m,
-      equipment: mockDb.equipment.find(e => e.id === m.equipment_id),
-      reporter: mockDb.users.find(u => u.id === m.reported_by)
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('maintenance_records')
+      .select(`*, equipment:equipment(*), reporter:users(*)`)
+      .order('created_at', { ascending: false });
+    if (error) liveError('getMaintenanceRecords', error);
+    return data as MaintenanceRecord[];
   },
 
   async addMaintenanceRecord(
@@ -406,70 +467,54 @@ export const databaseService = {
     scheduledDate: string,
     cost: number
   ): Promise<MaintenanceRecord> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('maintenance_records')
-        .insert([{
-          equipment_id: equipmentId,
-          reported_by: reportedBy,
-          issue_description: issue,
-          scheduled_date: scheduledDate,
-          cost
-        }])
-        .select()
-        .single();
-      if (error) liveError('addMaintenanceRecord', error);
-      return data as MaintenanceRecord;
-    }
-    return mockDb.addMaintenanceRecord(equipmentId, reportedBy, issue, scheduledDate, cost);
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('maintenance_records')
+      .insert([{
+        equipment_id: equipmentId,
+        reported_by: reportedBy,
+        issue_description: issue,
+        scheduled_date: scheduledDate,
+        cost
+      }])
+      .select()
+      .single();
+    if (error) liveError('addMaintenanceRecord', error);
+    return data as MaintenanceRecord;
   },
 
   // ── 10. AUDIT LOGS ──────────────────────────────────────────────────────
   async getAuditLogs(): Promise<AuditLog[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient
-        .from('audit_logs')
-        .select(`*, performer:users(*)`)
-        .order('created_at', { ascending: false })
-        .limit(200);
-      if (error) liveError('getAuditLogs', error);
-      return data as AuditLog[];
-    }
-    return mockDb.auditLogs.map(l => ({
-      ...l,
-      performer: l.performed_by ? mockDb.users.find(u => u.id === l.performed_by) : undefined
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client
+      .from('audit_logs')
+      .select(`*, performer:users(*)`)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) liveError('getAuditLogs', error);
+    return data as AuditLog[];
   },
 
   // ── 11. DATABASE VIEWS ──────────────────────────────────────────────────
   async getActiveLoansView(): Promise<ActiveLoansSummaryView[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.from('vw_active_loans_summary').select('*');
-      if (error) liveError('getActiveLoansView', error);
-      return data as ActiveLoansSummaryView[];
-    }
-    return mockDb.getActiveLoansView();
+    const client = requireSupabaseClient();
+    const { data, error } = await client.from('vw_active_loans_summary').select('*');
+    if (error) liveError('getActiveLoansView', error);
+    return data as ActiveLoansSummaryView[];
   },
 
   async getEquipmentInventoryView(): Promise<EquipmentInventoryStatusView[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.from('vw_equipment_inventory_status').select('*');
-      if (error) liveError('getEquipmentInventoryView', error);
-      return data as EquipmentInventoryStatusView[];
-    }
-    return mockDb.getEquipmentInventoryView();
+    const client = requireSupabaseClient();
+    const { data, error } = await client.from('vw_equipment_inventory_status').select('*');
+    if (error) liveError('getEquipmentInventoryView', error);
+    return data as EquipmentInventoryStatusView[];
   },
 
   // ── 12. USERS ───────────────────────────────────────────────────────────
   async getUsers(): Promise<User[]> {
-    if (this.isLive() && supabaseClient) {
-      const { data, error } = await supabaseClient.from('users').select('*, role:roles(*)');
-      if (error) liveError('getUsers', error);
-      return data as User[];
-    }
-    return mockDb.users.map(u => ({
-      ...u,
-      role: mockDb.roles.find(r => r.id === u.role_id)
-    }));
+    const client = requireSupabaseClient();
+    const { data, error } = await client.from('users').select('*, role:roles(*)');
+    if (error) liveError('getUsers', error);
+    return data as User[];
   }
 };

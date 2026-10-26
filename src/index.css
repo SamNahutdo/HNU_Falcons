@@ -198,6 +198,15 @@ body {
   font-family: inherit;
 }
 
+.input-group-custom input:-webkit-autofill,
+.input-group-custom input:-webkit-autofill:hover,
+.input-group-custom input:-webkit-autofill:focus,
+.input-group-custom input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #1E293B !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .btn-signin {
   background: var(--coral-gradient);
   border: none;

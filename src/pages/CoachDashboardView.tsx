@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
-import { mockDb } from '../services/mockData';
+import { dashboardApi } from '../services/dashboardApi';
 import { CoachBooking, Equipment, BorrowingTransaction } from '../types/database';
 
 interface CoachDashboardViewProps {
@@ -10,7 +10,7 @@ interface CoachDashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisplayName, currentTab = 'dashboard', onNavigate }) => {
+export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentTab = 'dashboard', onNavigate }) => {
   const effectiveTab =
     currentTab === 'bookings' ? 'bookings' :
     currentTab === 'borrowing' ? 'borrow' : 'dashboard';
@@ -29,39 +29,47 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const loadData = () => {
-    setBookings([...mockDb.coachBookings]);
-    setEquipmentList([...mockDb.equipment]);
-    setMyLoans(
-      mockDb.borrowingTransactions.filter(
-        t => t.borrower_name?.toLowerCase().includes(userDisplayName.toLowerCase()) ||
-             t.borrower_role === 'coach'
-      )
-    );
+  const loadData = async () => {
+    try {
+      const data = await dashboardApi.getData();
+      setBookings(data.bookings);
+      setEquipmentList(data.equipment);
+      setMyLoans(data.transactions);
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not load dashboard data.');
+    }
   };
 
   useEffect(() => {
-    loadData();
-    const unsub = mockDb.subscribe(loadData);
-    return unsub;
-  }, [userDisplayName]);
+    void loadData();
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleApproveBooking = (bookingId: string) => {
-    mockDb.updateCoachBookingStatus(bookingId, 'approved', 'Approved by Coach. Please report to the training court 10 mins early.');
-    showToast('Student booking approved and scheduled.');
+  const handleApproveBooking = async (bookingId: string) => {
+    try {
+      await dashboardApi.updateBookingStatus(bookingId, 'approved', 'Approved by Coach. Please report to the training court 10 mins early.');
+      await loadData();
+      showToast('Student booking approved and scheduled.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not approve booking.');
+    }
   };
 
-  const handleDeclineBooking = (bookingId: string) => {
-    mockDb.updateCoachBookingStatus(bookingId, 'rejected', 'Slot conflict with varsity scrimmage.');
-    showToast('Booking request declined.');
+  const handleDeclineBooking = async (bookingId: string) => {
+    try {
+      await dashboardApi.updateBookingStatus(bookingId, 'rejected', 'Slot conflict with varsity scrimmage.');
+      await loadData();
+      showToast('Booking request declined.');
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : 'Could not decline booking.');
+    }
   };
 
-  const handleBorrowSubmit = (e: React.FormEvent) => {
+  const handleBorrowSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedEq || !borrowReturnDate) {
       showToast('Please specify a return date.');
@@ -69,18 +77,16 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
     }
 
     try {
-      mockDb.borrowEquipmentDirect(
-        userDisplayName || 'Head Coach',
-        'coach',
-        '20210088',
-        selectedEq.id,
-        Number(borrowQuantity),
-        borrowReturnDate,
-        borrowRemarks.trim() || 'Varsity Squad Training Drill'
-      );
+      await dashboardApi.createLoan({
+        equipment_id: selectedEq.id,
+        quantity: Number(borrowQuantity),
+        expected_return_date: borrowReturnDate,
+        remarks: borrowRemarks.trim() || 'Varsity Squad Training Drill'
+      });
       setSelectedEq(null);
       setBorrowRemarks('');
       showToast(`Successfully checked out ${borrowQuantity}x ${selectedEq.name}.`);
+      await loadData();
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Borrow request failed.');
     }

@@ -55,15 +55,11 @@ CREATE POLICY "users: own profile or staff+"
         OR fn_get_caller_role() IN ('admin', 'staff')
     );
 
--- Only admin can create/update/delete user records
+-- Only admin can create/update/delete user records; new registrations are
+-- provisioned by the constrained auth.users trigger in migration 008.
 CREATE POLICY "users: admin manage"
     ON users FOR ALL
     USING (fn_get_caller_role() = 'admin');
-
--- Allow newly registered users to create their own initial profile matching their auth.uid()
-CREATE POLICY "users: allow user self-registration"
-    ON users FOR INSERT
-    WITH CHECK (user_auth_id = auth.uid());
 
 -- ─── TABLE: athletes ──────────────────────────────────────────────────────────
 CREATE POLICY "athletes: read by role"
