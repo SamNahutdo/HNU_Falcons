@@ -120,6 +120,26 @@ async function getActiveProfile(authUid: string, userEmail?: string) {
         .update({ user_auth_id: authUid })
         .eq('id', matchedUser.id);
       data = matchedUser;
+    } else {
+      // Auto-create missing public.users profile directly so user is never blocked
+      const defaultRoleId = '00000000-0000-0000-0000-000000000004'; // student
+      const schoolId = 'ID-' + authUid.replace(/-/g, '').slice(0, 10);
+      const { data: createdUser } = await client
+        .from('users')
+        .insert({
+          user_auth_id: authUid,
+          email: userEmail.trim().toLowerCase(),
+          full_name: userEmail.split('@')[0],
+          school_id: schoolId,
+          role_id: defaultRoleId,
+          status: 'active'
+        })
+        .select('id, full_name, email, school_id, status, role:roles(name)')
+        .maybeSingle();
+
+      if (createdUser) {
+        data = createdUser;
+      }
     }
   }
 
@@ -324,10 +344,26 @@ export const authService = {
       }
     });
 
-    if (signUpError || !signUpData.user) {
-      throw new Error(signUpError?.message || 'Registration failed.');
+    let authUid: string | null = null;
+    if (signUpError) {
+      if (signUpError.message.toLowerCase().includes('already registered')) {
+        // Check if user is already present in public.users
+        const { data: pubUser } = await client
+          .from('users')
+          .select('id, email, full_name')
+          .ilike('email', trimmedEmail)
+          .maybeSingle();
+
+        if (pubUser) {
+          throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
+        }
+        // User exists in auth.users but is missing in public.users: continue to insert into public.users below!
+      } else {
+        throw new Error(signUpError.message || 'Registration failed.');
+      }
+    } else if (signUpData?.user) {
+      authUid = signUpData.user.id;
     }
-    const authUid = signUpData.user.id;
 
     // 2. Insert or update record in public.users table immediately
     const { data: existingUser } = await client
@@ -342,7 +378,7 @@ export const authService = {
       await client
         .from('users')
         .update({
-          user_auth_id: authUid,
+          ...(authUid ? { user_auth_id: authUid } : {}),
           school_id: trimmedId,
           full_name: trimmedName,
           role_id: ROLE_IDS[role],
@@ -354,7 +390,7 @@ export const authService = {
       const { data: newUser, error: insertError } = await client
         .from('users')
         .insert({
-          user_auth_id: authUid,
+          ...(authUid ? { user_auth_id: authUid } : {}),
           email: trimmedEmail,
           full_name: trimmedName,
           school_id: trimmedId,
@@ -365,6 +401,9 @@ export const authService = {
         .single();
 
       if (insertError || !newUser) {
+        if (insertError?.message?.includes('users_school_id_unique')) {
+          throw new Error(`The ID "${trimmedId}" is already registered. Please use your own unique ID.`);
+        }
         throw new Error(insertError?.message || 'Failed to initialize profile in Supabase users table.');
       }
       publicUserId = newUser.id;
