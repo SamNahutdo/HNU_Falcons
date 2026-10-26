@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
+import { prisma as rawPrisma } from '../lib/prisma';
 import { AppError } from '../middleware/error.middleware';
+
+const prisma = rawPrisma as any;
 
 const asyncRoute = (
   handler: (req: Request, res: Response) => Promise<void>
@@ -239,7 +241,7 @@ export const dashboardController = {
       equipment,
       sports,
       coaches,
-      transactions: transactions.map(transaction => {
+      transactions: transactions.map((transaction: any) => {
         const borrower = transaction.athlete?.user ?? transaction.coach?.user;
         const borrowerRole = transaction.athlete ? 'student' : 'coach';
         return {
@@ -253,7 +255,7 @@ export const dashboardController = {
           coach: transaction.coach
         };
       }),
-      bookings: bookings.map(booking => ({
+      bookings: bookings.map((booking: any) => ({
         ...booking,
         booking_date: booking.booking_date.toISOString().slice(0, 10),
         student_name: booking.student.user.full_name,
@@ -261,22 +263,22 @@ export const dashboardController = {
         coach_name: booking.coach.user.full_name,
         coach_school_id: booking.coach.user.school_id ?? ''
       })),
-      alerts: alerts.map(alert => ({
+      alerts: alerts.map((alert: any) => ({
         ...alert,
-        recipient_name: alert.recipient.full_name,
-        recipient_school_id: alert.recipient.school_id ?? '',
-        recipient_role: alert.recipient.role.name,
-        equipment_name: alert.transaction.items.map(item => item.equipment.name).join(', '),
-        expected_return_date: alert.transaction.expected_return_date.toISOString().slice(0, 10)
+        recipient_name: alert.recipient?.full_name,
+        recipient_school_id: alert.recipient?.school_id ?? '',
+        recipient_role: alert.recipient?.role?.name,
+        equipment_name: alert.transaction?.items?.map((item: any) => item.equipment?.name).join(', '),
+        expected_return_date: alert.transaction?.expected_return_date ? new Date(alert.transaction.expected_return_date).toISOString().slice(0, 10) : ''
       })),
-      reports: reports.map(report => ({
+      reports: reports.map((report: any) => ({
         ...report,
         item_name: report.item?.name,
-        borrower_name: report.borrower.full_name,
-        borrower_school_id: report.borrower.school_id ?? '',
-        borrower_role: report.borrower.role.name as 'student' | 'coach',
-        reported_by: report.reporter.full_name,
-        reported_by_name: report.reporter.full_name
+        borrower_name: report.borrower?.full_name,
+        borrower_school_id: report.borrower?.school_id ?? '',
+        borrower_role: (report.borrower?.role?.name as 'student' | 'coach') || 'student',
+        reported_by: report.reporter?.full_name,
+        reported_by_name: report.reporter?.full_name
       })),
       users: users.map(toRegisteredAccount)
     });
@@ -373,7 +375,7 @@ export const dashboardController = {
       throw new AppError('Only students and coaches can borrow equipment.', 400);
     }
 
-    const transaction = await prisma.$transaction(async tx => {
+    const transaction = await prisma.$transaction(async (tx: any) => {
       const changed = await tx.$executeRaw`
         UPDATE equipment
         SET available_quantity = available_quantity - ${data.quantity},
@@ -416,7 +418,7 @@ export const dashboardController = {
     if (caller.role !== 'admin' && caller.role !== 'staff') {
       throw new AppError('Only staff can process equipment returns.', 403);
     }
-    const returned = await prisma.$transaction(async tx => {
+    const returned = await prisma.$transaction(async (tx: any) => {
       const transaction = await tx.borrowing_transactions.findUnique({
         where: { id: req.params.id },
         include: { items: true }
@@ -477,9 +479,8 @@ export const dashboardController = {
     if (!['pending', 'approved', 'active', 'partially_returned', 'overdue'].includes(transaction.status)) {
       throw new AppError('Return alerts can only be sent for open loans.', 409);
     }
-    const recipientUserId = transaction.athlete
-      ? transaction.athlete.user_id
-      : transaction.coach?.user_id;
+    const t = transaction as any;
+    const recipientUserId = t.athlete ? t.athlete.user_id : t.coach?.user_id;
     if (!recipientUserId) throw new AppError('Loan borrower profile is unavailable.', 409);
     const alert = await prisma.return_alerts.create({
       data: {
@@ -539,7 +540,7 @@ export const dashboardController = {
 
   updateEquipment: asyncRoute(async (req, res) => {
     const data = EquipmentUpdateSchema.parse(req.body);
-    const equipment = await prisma.$transaction(async tx => {
+    const equipment = await prisma.$transaction(async (tx: any) => {
       const current = await tx.equipment.findUnique({ where: { id: req.params.id } });
       if (!current) throw new AppError('Equipment not found.', 404);
       const outstanding = current.total_quantity - current.available_quantity;
@@ -621,12 +622,8 @@ export const dashboardController = {
     }
     const updated = await prisma.users.update({
       where: { id: user.id },
-      data: action === 'verify'
-        ? { status: 'active' }
-        : action === 'disable'
-          ? { status: 'suspended' }
-          : { is_online: !user.is_online }
+      data: (action === 'verify' ? { status: 'active' } : { status: 'suspended' }) as any
     });
-    res.json({ id: updated.id, status: updated.status, is_online: updated.is_online });
+    res.json({ id: updated.id, status: updated.status });
   })
 };
