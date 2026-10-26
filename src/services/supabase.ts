@@ -32,22 +32,20 @@ export function getSupabaseCredentials(): { url: string; anonKey: string; isLive
   return { url, anonKey, isLiveConfigured };
 }
 
-let cachedAdminClient: SupabaseClient | null = null;
-export function getAdminSupabaseClient(): SupabaseClient {
-  if (cachedAdminClient) return cachedAdminClient;
-  const url = import.meta.env.VITE_SUPABASE_URL || 'https://ulaqsayqqkfebsavaisc.supabase.co';
-  const secretKey = import.meta.env.VITE_SUPABASE_SECRET_KEY;
-  if (!secretKey) {
-    return requireSupabaseClient();
-  }
-  cachedAdminClient = createClient(url, secretKey, {
+let cachedIsolatedClient: SupabaseClient | null = null;
+export function getIsolatedSupabaseClient(): SupabaseClient {
+  if (cachedIsolatedClient) return cachedIsolatedClient;
+  const { url, anonKey } = getSupabaseCredentials();
+  cachedIsolatedClient = createClient(url, anonKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
     }
   });
-  return cachedAdminClient;
+  return cachedIsolatedClient;
 }
+
+export const getAdminSupabaseClient = getIsolatedSupabaseClient;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Singleton client
@@ -311,42 +309,28 @@ export const authService = {
     const trimmedName = fullName.trim();
     const trimmedId = schoolId.trim().slice(0, 15);
 
-    const admin = getAdminSupabaseClient();
-    const anon = requireSupabaseClient();
+    const client = getIsolatedSupabaseClient();
 
-    // 1. Create the Auth User with email auto-confirmed so rate limits don't block them
-    let authUid: string | null = null;
-    const { data: authResult, error: authError } = await admin.auth.admin.createUser({
+    // 1. Create the Auth User with standard browser signUp (without persisting session)
+    const { data: signUpData, error: signUpError } = await client.auth.signUp({
       email: trimmedEmail,
       password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: trimmedName,
-        school_id: trimmedId,
-        role
+      options: {
+        data: {
+          full_name: trimmedName,
+          school_id: trimmedId,
+          role
+        }
       }
     });
 
-    if (authError) {
-      // Fallback to anon.signUp if admin fails (e.g. rate or network edge case)
-      const { data: signUpData, error: signUpError } = await anon.auth.signUp({
-        email: trimmedEmail,
-        password,
-        options: { data: { full_name: trimmedName, school_id: trimmedId, role } }
-      });
-      if (signUpError || !signUpData.user) {
-        throw new Error(signUpError?.message || authError.message);
-      }
-      authUid = signUpData.user.id;
-      if (signUpData.session) {
-        await anon.auth.signOut({ scope: 'local' });
-      }
-    } else {
-      authUid = authResult.user.id;
+    if (signUpError || !signUpData.user) {
+      throw new Error(signUpError?.message || 'Registration failed.');
     }
+    const authUid = signUpData.user.id;
 
     // 2. Insert or update record in public.users table immediately
-    const { data: existingUser } = await admin
+    const { data: existingUser } = await client
       .from('users')
       .select('id, user_auth_id')
       .ilike('email', trimmedEmail)
@@ -355,7 +339,7 @@ export const authService = {
     let publicUserId: string;
 
     if (existingUser) {
-      await admin
+      await client
         .from('users')
         .update({
           user_auth_id: authUid,
@@ -367,7 +351,7 @@ export const authService = {
         .eq('id', existingUser.id);
       publicUserId = existingUser.id;
     } else {
-      const { data: newUser, error: insertError } = await admin
+      const { data: newUser, error: insertError } = await client
         .from('users')
         .insert({
           user_auth_id: authUid,
@@ -388,14 +372,14 @@ export const authService = {
 
     // 3. Populate role-specific child table (athletes or coaches)
     if (role === 'student') {
-      const { data: existingAthlete } = await admin
+      const { data: existingAthlete } = await client
         .from('athletes')
         .select('id')
         .eq('user_id', publicUserId)
         .maybeSingle();
 
       if (!existingAthlete) {
-        await admin.from('athletes').insert({
+        await client.from('athletes').insert({
           user_id: publicUserId,
           student_number: trimmedId,
           department: department || 'Athletics Department',
@@ -404,14 +388,14 @@ export const authService = {
         });
       }
     } else if (role === 'coach') {
-      const { data: existingCoach } = await admin
+      const { data: existingCoach } = await client
         .from('coaches')
         .select('id')
         .eq('user_id', publicUserId)
         .maybeSingle();
 
       if (!existingCoach) {
-        await admin.from('coaches').insert({
+        await client.from('coaches').insert({
           user_id: publicUserId,
           employee_number: trimmedId,
           specialization: specialization || 'Varsity Athletics',

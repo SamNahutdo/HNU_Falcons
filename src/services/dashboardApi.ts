@@ -438,26 +438,27 @@ export const dashboardApi = {
       throw new Error('Password must be at least 12 characters.');
     }
 
-    const admin = getAdminSupabaseClient();
+    const client = getAdminSupabaseClient();
 
-    // 1. Create auth user
-    const { data: authData, error: authErr } = await admin.auth.admin.createUser({
+    // 1. Create auth user with standard isolated signUp
+    const { data: authData, error: authErr } = await client.auth.signUp({
       email: trimmedEmail,
       password: data.password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: trimmedName,
-        school_id: trimmedId,
-        role: 'admin'
+      options: {
+        data: {
+          full_name: trimmedName,
+          school_id: trimmedId,
+          role: 'admin'
+        }
       }
     });
 
-    if (authErr) {
-      throw new Error(authErr.message);
+    if (authErr || !authData.user) {
+      throw new Error(authErr?.message || 'Could not register administrator account.');
     }
 
     // 2. Insert into public.users
-    const { data: newUser, error: userErr } = await admin
+    const { data: newUser, error: userErr } = await client
       .from('users')
       .insert({
         user_auth_id: authData.user.id,
@@ -471,7 +472,6 @@ export const dashboardApi = {
       .single();
 
     if (userErr) {
-      await admin.auth.admin.deleteUser(authData.user.id);
       throw new Error(userErr.message);
     }
 
@@ -483,11 +483,11 @@ export const dashboardApi = {
    * Protects the primary administrator (admin@gmail.com / ADMIN-001) from deletion.
    */
   async deleteAdmin(userId: string) {
-    const admin = getAdminSupabaseClient();
+    const client = requireSupabaseClient();
 
-    const { data: targetUser, error: fetchErr } = await admin
+    const { data: targetUser, error: fetchErr } = await client
       .from('users')
-      .select('id, email, school_id, user_auth_id, role_id')
+      .select('id, email, school_id')
       .eq('id', userId)
       .single();
 
@@ -503,16 +503,8 @@ export const dashboardApi = {
       throw new Error('The primary system administrator (admin@gmail.com) cannot be deleted.');
     }
 
-    const { error: delErr } = await admin.from('users').delete().eq('id', userId);
+    const { error: delErr } = await client.from('users').delete().eq('id', userId);
     if (delErr) throw new Error(delErr.message);
-
-    if (targetUser.user_auth_id) {
-      try {
-        await admin.auth.admin.deleteUser(targetUser.user_auth_id);
-      } catch (e) {
-        console.warn('[dashboardApi] Auth user deletion warning:', e);
-      }
-    }
 
     return { success: true };
   },
@@ -521,11 +513,11 @@ export const dashboardApi = {
    * Remove a regular user account (student, coach, staff).
    */
   async deleteUser(userId: string) {
-    const admin = getAdminSupabaseClient();
+    const client = requireSupabaseClient();
 
-    const { data: targetUser } = await admin
+    const { data: targetUser } = await client
       .from('users')
-      .select('id, email, user_auth_id')
+      .select('id, email')
       .eq('id', userId)
       .maybeSingle();
 
@@ -533,19 +525,12 @@ export const dashboardApi = {
       throw new Error('The primary system administrator cannot be deleted.');
     }
 
-    await admin.from('athletes').delete().eq('user_id', userId);
-    await admin.from('coaches').delete().eq('user_id', userId);
+    // Clean child references in case cascade is not yet executed in SQL
+    await client.from('athletes').delete().eq('user_id', userId);
+    await client.from('coaches').delete().eq('user_id', userId);
 
-    const { error: delErr } = await admin.from('users').delete().eq('id', userId);
+    const { error: delErr } = await client.from('users').delete().eq('id', userId);
     if (delErr) throw new Error(delErr.message);
-
-    if (targetUser?.user_auth_id) {
-      try {
-        await admin.auth.admin.deleteUser(targetUser.user_auth_id);
-      } catch (e) {
-        console.warn('[dashboardApi] Auth user deletion warning:', e);
-      }
-    }
 
     return { success: true };
   }
