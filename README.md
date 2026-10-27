@@ -204,7 +204,7 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 └── 📄 package.json
 ```
 
----
+---gdgdgdgdg
 
 ## 🚀 Quick Start Guide
 
