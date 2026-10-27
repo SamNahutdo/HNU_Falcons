@@ -130,7 +130,7 @@ The student workspace provides access to equipment and coach-related activities,
 
 </details>
 
----
+----
 
 ## 🔄 Borrowing Records
 
