@@ -147,7 +147,7 @@ The borrowing records interface is implemented in [`src/pages/BorrowingView.tsx`
 
 Checkout and return dialogs are implemented in [`src/components/CheckoutModal.tsx`](src/components/CheckoutModal.tsx) and [`src/components/ReturnModal.tsx`](src/components/ReturnModal.tsx). The shared transaction and item models, including partial return statuses, are defined in [`src/types/database.ts`](src/types/database.ts).
 
----
+----
 
 ## ⚡ Database & Data Features
 
@@ -166,7 +166,7 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 
 </div>
 
----
+----
 
 ## 📁 Project Structure
 
@@ -204,7 +204,7 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 └── 📄 package.json
 ```
 
----
+----
 
 ## 🚀 Quick Start Guide
 
