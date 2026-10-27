@@ -9,11 +9,7 @@ import {
   CheckCircle,
   Layers,
   AlertTriangle,
-  Trophy,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  RotateCcw,
+  Trophy
 } from 'lucide-react';
 import { Equipment, Sport, UserRole } from '../types/database';
 import { databaseService } from '../services/supabase';
@@ -34,9 +30,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedCondition, setSelectedCondition] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'equipment_code' | 'category' | 'available_quantity' | 'condition' | 'status'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -68,60 +61,15 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
   const availableUnits = equipmentList.reduce((sum, eq) => sum + eq.available_quantity, 0);
   const lowStockCount = equipmentList.filter(eq => eq.status === 'low_stock' || eq.status === 'out_of_stock').length;
 
-  const hasActiveFilters =
-    searchTerm !== '' ||
-    selectedSport !== 'all' ||
-    selectedStatus !== 'all' ||
-    selectedCondition !== 'all' ||
-    sortBy !== 'name' ||
-    sortOrder !== 'asc';
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setSelectedSport('all');
-    setSelectedStatus('all');
-    setSelectedCondition('all');
-    setSortBy('name');
-    setSortOrder('asc');
-  };
-
-  const handleSort = (field: 'name' | 'equipment_code' | 'category' | 'available_quantity' | 'condition' | 'status') => {
-    if (sortBy === field) {
-      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
-    }
-  };
-
-  const filteredEquipment = [...equipmentList]
-    .filter((eq) => {
-      const matchesSearch =
-        eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        eq.equipment_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        eq.category.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSport = selectedSport === 'all' || eq.sport_id === selectedSport;
-      const matchesStatus = selectedStatus === 'all' || eq.status === selectedStatus;
-      const matchesCondition = selectedCondition === 'all' || eq.condition === selectedCondition;
-      return matchesSearch && matchesSport && matchesStatus && matchesCondition;
-    })
-    .sort((a, b) => {
-      let comparison = 0;
-      if (sortBy === 'name') {
-        comparison = a.name.localeCompare(b.name);
-      } else if (sortBy === 'equipment_code') {
-        comparison = a.equipment_code.localeCompare(b.equipment_code);
-      } else if (sortBy === 'category') {
-        comparison = a.category.localeCompare(b.category);
-      } else if (sortBy === 'available_quantity') {
-        comparison = a.available_quantity - b.available_quantity;
-      } else if (sortBy === 'condition') {
-        comparison = a.condition.localeCompare(b.condition);
-      } else if (sortBy === 'status') {
-        comparison = a.status.localeCompare(b.status);
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
-    });
+  const filteredEquipment = equipmentList.filter((eq) => {
+    const matchesSearch =
+      eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.equipment_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      eq.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSport = selectedSport === 'all' || eq.sport_id === selectedSport;
+    const matchesStatus = selectedStatus === 'all' || eq.status === selectedStatus;
+    return matchesSearch && matchesSport && matchesStatus;
+  });
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,49 +284,6 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
             <option value="out_of_stock">Out of Stock</option>
             <option value="under_maintenance">Under Maintenance</option>
           </select>
-
-          <select
-            style={{
-              padding: '0.55rem 1.15rem',
-              borderRadius: '9999px',
-              border: '1.5px solid #E2E8F0',
-              background: '#FFFFFF',
-              color: '#334155',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-            value={selectedCondition}
-            onChange={(e) => setSelectedCondition(e.target.value)}
-            aria-label="Filter by condition"
-          >
-            <option value="all">All Conditions</option>
-            <option value="new">New</option>
-            <option value="good">Good</option>
-            <option value="fair">Fair</option>
-            <option value="poor">Poor</option>
-          </select>
-
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                border: 'none',
-                background: 'transparent',
-                color: '#475569',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              <RotateCcw size={14} /> Reset
-            </button>
-          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -448,32 +353,12 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
           <table className="table-modern">
             <thead>
               <tr>
-                <th>
-                  <button type="button" onClick={() => handleSort('name')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
-                    Code &amp; Name {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
-                  </button>
-                </th>
+                <th>Code & Name</th>
                 <th>Discipline</th>
-                <th>
-                  <button type="button" onClick={() => handleSort('category')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
-                    Category {sortBy === 'category' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" onClick={() => handleSort('available_quantity')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
-                    Availability Ratio {sortBy === 'available_quantity' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" onClick={() => handleSort('condition')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
-                    Condition {sortBy === 'condition' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
-                  </button>
-                </th>
-                <th>
-                  <button type="button" onClick={() => handleSort('status')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
-                    Status {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
-                  </button>
-                </th>
+                <th>Category</th>
+                <th>Availability Ratio</th>
+                <th>Condition</th>
+                <th>Status</th>
                 {currentRole !== 'student' && <th style={{ textAlign: 'right' }}>Actions</th>}
               </tr>
             </thead>

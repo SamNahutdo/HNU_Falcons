@@ -80,9 +80,6 @@ async function handleMe(client: SupabaseClient) {
   return json({ user_id: user.id, role, profile });
 }
 
-
-//okii
-
 async function handleEquipment(client: SupabaseClient, url: URL) {
   const { user, role } = await getUserAndRole(client);
   if (!user) return error("Unauthorized", 401);

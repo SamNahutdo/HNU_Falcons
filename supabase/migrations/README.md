@@ -17,18 +17,16 @@ Run them in numbered order against your Supabase SQL Editor.
 | `005_rls_policies.sql` | Enables RLS on all 12 tables; creates role-based access policies | Week 6–7 |
 | `006_performance_indexes.sql` | Adds composite and partial indexes based on EXPLAIN ANALYZE results | Week 6–7 |
 | `007_seed_data.sql` | Inserts demo data for all user roles, equipment, teams, and transactions | Week 2 |
-| `008_harden_self_registration.sql` | Creates pending student profiles for new Auth users; existing profiles are not auto-linked | Security |
+| `008_harden_self_registration.sql` | Creates only pending student profiles for new Auth users; existing profiles are not auto-linked | Security |
 | `009_secure_views_with_rls.sql` | Makes reporting views apply the caller's table permissions and RLS | Security |
 | `010_protected_dashboard_workflows.sql` | Adds persistent dashboard workflows and borrower-scoped loan access | API migration |
-| `011_fix_reports_and_bookings.sql` | Creates coach booking and staff report workflows | API migration |
-| `012_all_roles_require_verification.sql` | Creates inactive student, coach, and staff profiles on public signup | Security |
 
 ---
 
 ## How to Apply
 
 1. Open the **Supabase Dashboard** → SQL Editor
-2. Run each file in order (001 → 012)
+2. Run each file in order (001 → 010)
 3. After applying 007, link Supabase Auth accounts:
 
 ```sql

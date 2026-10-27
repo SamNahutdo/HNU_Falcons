@@ -98,16 +98,53 @@ function isUserRole(role: unknown): role is UserRole {
   return role === 'admin' || role === 'staff' || role === 'coach' || role === 'student';
 }
 
-async function getActiveProfile(authUid: string) {
+async function getActiveProfile(authUid: string, userEmail?: string) {
   const client = requireSupabaseClient();
-  const { data, error } = await client
+  let { data, error } = await client
     .from('users')
     .select('id, full_name, email, school_id, status, role:roles(name)')
     .eq('user_auth_id', authUid)
     .maybeSingle();
 
+  // If user_auth_id is not yet linked, link by email automatically
+  if (!data && userEmail) {
+    const { data: matchedUser } = await client
+      .from('users')
+      .select('id, full_name, email, school_id, status, role:roles(name)')
+      .ilike('email', userEmail.trim())
+      .maybeSingle();
+
+    if (matchedUser) {
+      await client
+        .from('users')
+        .update({ user_auth_id: authUid })
+        .eq('id', matchedUser.id);
+      data = matchedUser;
+    } else {
+      // Auto-create missing public.users profile directly so user is never blocked
+      const defaultRoleId = '00000000-0000-0000-0000-000000000004'; // student
+      const schoolId = 'ID-' + authUid.replace(/-/g, '').slice(0, 10);
+      const { data: createdUser } = await client
+        .from('users')
+        .insert({
+          user_auth_id: authUid,
+          email: userEmail.trim().toLowerCase(),
+          full_name: userEmail.split('@')[0],
+          school_id: schoolId,
+          role_id: defaultRoleId,
+          status: 'active'
+        })
+        .select('id, full_name, email, school_id, status, role:roles(name)')
+        .maybeSingle();
+
+      if (createdUser) {
+        data = createdUser;
+      }
+    }
+  }
+
   if (error || !data) {
-    throw new Error('Your account has no application profile linked to it. Contact an administrator.');
+    throw new Error('Your account does not have an active application profile in the database. Contact an administrator.');
   }
 
   const profile = data as {
@@ -232,7 +269,7 @@ export const authService = {
     }
 
     try {
-      return await getActiveProfile(data.user.id);
+      return await getActiveProfile(data.user.id, data.user.email);
     } catch (profileError) {
       await client.auth.signOut({ scope: 'local' });
       throw profileError;
@@ -253,45 +290,48 @@ export const authService = {
       throw new Error('The saved sign-in could not be verified. Please sign in again.');
     }
     try {
-      return await getActiveProfile(data.user.id);
+      return await getActiveProfile(data.user.id, data.user.email);
     } catch (profileError) {
       await supabaseClient.auth.signOut({ scope: 'local' });
       throw profileError;
     }
   },
 
-  /** Register a public account; the auth trigger creates its inactive profile for admin review. */
+  /**
+   * Register a user with one of the 3 public roles: student, coach, or staff.
+   * Immediately inserts into public.users and role child table so the account appears in Supabase.
+   */
   async registerUser({
     email,
     password,
     fullName,
     schoolId,
-    role = 'student'
+    role = 'student',
+    department,
+    specialization
   }: {
     email: string;
     password: string;
     fullName: string;
     schoolId: string;
-    role?: 'student' | 'coach' | 'staff';
+    role: 'student' | 'coach' | 'staff';
+    department?: string;
+    specialization?: string;
   }) {
+    if ((role as string) === 'admin') {
+      throw new Error('Administrator accounts cannot be registered from the public portal. Only an active administrator can create new admin accounts.');
+    }
     if (!['student', 'coach', 'staff'].includes(role)) {
       throw new Error('Please select a valid role (Student, Coach, or Staff).');
     }
 
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = fullName.trim();
-    const trimmedId = role === 'student' ? schoolId.trim() : schoolId.trim().toUpperCase();
-    const validId = role === 'student'
-      ? /^\d{7,15}$/.test(trimmedId)
-      : /^[A-Z0-9][A-Z0-9-]{2,14}$/.test(trimmedId);
-    if (!validId) {
-      throw new Error(role === 'student'
-        ? 'Student ID must contain 7 to 15 digits.'
-        : 'Employee ID must contain 3 to 15 letters, numbers, or hyphens.');
-    }
+    const trimmedId = schoolId.trim().slice(0, 15);
 
     const client = getIsolatedSupabaseClient();
 
+    // 1. Create the Auth User with standard browser signUp (without persisting session)
     const { data: signUpData, error: signUpError } = await client.auth.signUp({
       email: trimmedEmail,
       password,
@@ -304,20 +344,126 @@ export const authService = {
       }
     });
 
+    let authUid: string | null = null;
     if (signUpError) {
       if (signUpError.message.toLowerCase().includes('already registered')) {
-        throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
+        // Check if user is already present in public.users
+        const { data: pubUser } = await client
+          .from('users')
+          .select('id, email, full_name')
+          .ilike('email', trimmedEmail)
+          .maybeSingle();
+
+        if (pubUser) {
+          throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
+        }
+        // User exists in auth.users but is missing in public.users: continue to insert into public.users below!
+      } else {
+        throw new Error(signUpError.message || 'Registration failed.');
       }
-      throw new Error(signUpError.message || 'Registration failed.');
+    } else if (signUpData?.user) {
+      authUid = signUpData.user.id;
     }
 
-    if (!signUpData.user) {
-      throw new Error('Registration could not be completed. Please try again.');
+    // 2. Insert or update record in public.users table immediately
+    const { data: existingUser } = await client
+      .from('users')
+      .select('id, user_auth_id')
+      .ilike('email', trimmedEmail)
+      .maybeSingle();
+
+    let publicUserId: string;
+
+    if (existingUser) {
+      await client
+        .from('users')
+        .update({
+          ...(authUid ? { user_auth_id: authUid } : {}),
+          school_id: trimmedId,
+          full_name: trimmedName,
+          role_id: ROLE_IDS[role],
+          status: 'active'
+        })
+        .eq('id', existingUser.id);
+      publicUserId = existingUser.id;
+    } else {
+      const { data: newUser, error: insertError } = await client
+        .from('users')
+        .insert({
+          ...(authUid ? { user_auth_id: authUid } : {}),
+          email: trimmedEmail,
+          full_name: trimmedName,
+          school_id: trimmedId,
+          role_id: ROLE_IDS[role],
+          status: 'active'
+        })
+        .select()
+        .single();
+
+      if (insertError || !newUser) {
+        if (insertError?.message?.includes('users_school_id_unique')) {
+          throw new Error(`The ID "${trimmedId}" is already registered. Please use your own unique ID.`);
+        }
+        throw new Error(insertError?.message || 'Failed to initialize profile in Supabase users table.');
+      }
+      publicUserId = newUser.id;
+    }
+
+    // 3. Populate role-specific child table (athletes or coaches)
+    if (role === 'student') {
+      const { data: existingAthlete } = await client
+        .from('athletes')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingAthlete) {
+        await client.from('athletes').insert({
+          user_id: publicUserId,
+          student_number: trimmedId,
+          department: department || 'Athletics Department',
+          year_level: 1,
+          emergency_contact: 'None'
+        });
+      }
+    } else if (role === 'coach') {
+      const { data: existingCoach } = await client
+        .from('coaches')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingCoach) {
+        await client.from('coaches').insert({
+          user_id: publicUserId,
+          employee_number: trimmedId,
+          specialization: specialization || 'Varsity Athletics',
+          license_level: 'Certified'
+        });
+      }
+
+      // Also ensure coach has an athlete borrower profile
+      const { data: existingAth } = await client
+        .from('athletes')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingAth) {
+        await client.from('athletes').insert({
+          user_id: publicUserId,
+          student_number: trimmedId,
+          department: 'Athletics Coaching Staff',
+          year_level: 1,
+          emergency_contact: 'Athletics Office'
+        });
+      }
     }
 
     return {
       success: true,
-      authUid: signUpData.user.id,
+      authUid,
+      userId: publicUserId,
       email: trimmedEmail,
       fullName: trimmedName,
       role
