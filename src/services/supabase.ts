@@ -98,53 +98,16 @@ function isUserRole(role: unknown): role is UserRole {
   return role === 'admin' || role === 'staff' || role === 'coach' || role === 'student';
 }
 
-async function getActiveProfile(authUid: string, userEmail?: string) {
+async function getActiveProfile(authUid: string) {
   const client = requireSupabaseClient();
-  let { data, error } = await client
+  const { data, error } = await client
     .from('users')
     .select('id, full_name, email, school_id, status, role:roles(name)')
     .eq('user_auth_id', authUid)
     .maybeSingle();
 
-  // If user_auth_id is not yet linked, link by email automatically
-  if (!data && userEmail) {
-    const { data: matchedUser } = await client
-      .from('users')
-      .select('id, full_name, email, school_id, status, role:roles(name)')
-      .ilike('email', userEmail.trim())
-      .maybeSingle();
-
-    if (matchedUser) {
-      await client
-        .from('users')
-        .update({ user_auth_id: authUid })
-        .eq('id', matchedUser.id);
-      data = matchedUser;
-    } else {
-      // Auto-create missing public.users profile directly so user is never blocked
-      const defaultRoleId = '00000000-0000-0000-0000-000000000004'; // student
-      const schoolId = 'ID-' + authUid.replace(/-/g, '').slice(0, 10);
-      const { data: createdUser } = await client
-        .from('users')
-        .insert({
-          user_auth_id: authUid,
-          email: userEmail.trim().toLowerCase(),
-          full_name: userEmail.split('@')[0],
-          school_id: schoolId,
-          role_id: defaultRoleId,
-          status: 'active'
-        })
-        .select('id, full_name, email, school_id, status, role:roles(name)')
-        .maybeSingle();
-
-      if (createdUser) {
-        data = createdUser;
-      }
-    }
-  }
-
   if (error || !data) {
-    throw new Error('Your account does not have an active application profile in the database. Contact an administrator.');
+    throw new Error('Your account has no application profile linked to it. Contact an administrator.');
   }
 
   const profile = data as {
@@ -269,7 +232,7 @@ export const authService = {
     }
 
     try {
-      return await getActiveProfile(data.user.id, data.user.email);
+      return await getActiveProfile(data.user.id);
     } catch (profileError) {
       await client.auth.signOut({ scope: 'local' });
       throw profileError;
@@ -290,14 +253,14 @@ export const authService = {
       throw new Error('The saved sign-in could not be verified. Please sign in again.');
     }
     try {
-      return await getActiveProfile(data.user.id, data.user.email);
+      return await getActiveProfile(data.user.id);
     } catch (profileError) {
       await supabaseClient.auth.signOut({ scope: 'local' });
       throw profileError;
     }
   },
 
-  /** Register a student; the auth trigger creates the inactive profile for admin review. */
+  /** Register a public account; the auth trigger creates its inactive profile for admin review. */
   async registerUser({
     email,
     password,
@@ -311,15 +274,20 @@ export const authService = {
     schoolId: string;
     role?: 'student' | 'coach' | 'staff';
   }) {
-    if (role !== 'student') {
-      throw new Error('Public registration is limited to student accounts. Contact an administrator for coach or staff access.');
+    if (!['student', 'coach', 'staff'].includes(role)) {
+      throw new Error('Please select a valid role (Student, Coach, or Staff).');
     }
 
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = fullName.trim();
-    const trimmedId = schoolId.trim();
-    if (!/^\d{7,15}$/.test(trimmedId)) {
-      throw new Error('Student ID must contain 7 to 15 digits.');
+    const trimmedId = role === 'student' ? schoolId.trim() : schoolId.trim().toUpperCase();
+    const validId = role === 'student'
+      ? /^\d{7,15}$/.test(trimmedId)
+      : /^[A-Z0-9][A-Z0-9-]{2,14}$/.test(trimmedId);
+    if (!validId) {
+      throw new Error(role === 'student'
+        ? 'Student ID must contain 7 to 15 digits.'
+        : 'Employee ID must contain 3 to 15 letters, numbers, or hyphens.');
     }
 
     const client = getIsolatedSupabaseClient();
@@ -331,7 +299,7 @@ export const authService = {
         data: {
           full_name: trimmedName,
           school_id: trimmedId,
-          role: 'student'
+          role
         }
       }
     });
@@ -352,7 +320,7 @@ export const authService = {
       authUid: signUpData.user.id,
       email: trimmedEmail,
       fullName: trimmedName,
-      role: 'student' as const
+      role
     };
   },
 

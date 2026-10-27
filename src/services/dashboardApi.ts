@@ -723,10 +723,10 @@ export const dashboardApi = {
       throw new Error('Password must be at least 12 characters.');
     }
 
-    const client = getAdminSupabaseClient();
+    const authClient = getAdminSupabaseClient();
 
     // 1. Create auth user with standard isolated signUp
-    const { data: authData, error: authErr } = await client.auth.signUp({
+    const { data: authData, error: authErr } = await authClient.auth.signUp({
       email: trimmedEmail,
       password: data.password,
       options: {
@@ -743,6 +743,7 @@ export const dashboardApi = {
     }
 
     // 2. Insert into public.users
+    const client = requireSupabaseClient();
     const { data: newUser, error: userErr } = await client
       .from('users')
       .insert({
