@@ -297,41 +297,23 @@ export const authService = {
     }
   },
 
-  /**
-   * Register a user with one of the 3 public roles: student, coach, or staff.
-   * Immediately inserts into public.users and role child table so the account appears in Supabase.
-   */
+  /** Register a student; the auth trigger creates the inactive public profile for admin review. */
   async registerUser({
     email,
     password,
     fullName,
-    schoolId,
-    role = 'student',
-    department,
-    specialization
+    schoolId
   }: {
     email: string;
     password: string;
     fullName: string;
     schoolId: string;
-    role: 'student' | 'coach' | 'staff';
-    department?: string;
-    specialization?: string;
   }) {
-    if ((role as string) === 'admin') {
-      throw new Error('Administrator accounts cannot be registered from the public portal. Only an active administrator can create new admin accounts.');
-    }
-    if (!['student', 'coach', 'staff'].includes(role)) {
-      throw new Error('Please select a valid role (Student, Coach, or Staff).');
-    }
-
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = fullName.trim();
-    const trimmedId = schoolId.trim().slice(0, 15);
+    const trimmedId = schoolId.trim();
 
     const client = getIsolatedSupabaseClient();
-
-    // 1. Create the Auth User with standard browser signUp (without persisting session)
     const { data: signUpData, error: signUpError } = await client.auth.signUp({
       email: trimmedEmail,
       password,
@@ -339,139 +321,33 @@ export const authService = {
         data: {
           full_name: trimmedName,
           school_id: trimmedId,
-          role
+          role: 'student'
         }
       }
     });
 
-    let authUid: string | null = null;
     if (signUpError) {
       if (signUpError.message.toLowerCase().includes('already registered')) {
-        // Check if user is already present in public.users
-        const { data: pubUser } = await client
-          .from('users')
-          .select('id, email, full_name')
-          .ilike('email', trimmedEmail)
-          .maybeSingle();
-
-        if (pubUser) {
-          throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
-        }
-        // User exists in auth.users but is missing in public.users: continue to insert into public.users below!
-      } else {
-        throw new Error(signUpError.message || 'Registration failed.');
+        throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
       }
-    } else if (signUpData?.user) {
-      authUid = signUpData.user.id;
+      throw new Error(signUpError.message || 'Registration failed.');
     }
 
-    // 2. Insert or update record in public.users table immediately
-    const { data: existingUser } = await client
-      .from('users')
-      .select('id, user_auth_id')
-      .ilike('email', trimmedEmail)
-      .maybeSingle();
-
-    let publicUserId: string;
-
-    if (existingUser) {
-      await client
-        .from('users')
-        .update({
-          ...(authUid ? { user_auth_id: authUid } : {}),
-          school_id: trimmedId,
-          full_name: trimmedName,
-          role_id: ROLE_IDS[role],
-          status: 'active'
-        })
-        .eq('id', existingUser.id);
-      publicUserId = existingUser.id;
-    } else {
-      const { data: newUser, error: insertError } = await client
-        .from('users')
-        .insert({
-          ...(authUid ? { user_auth_id: authUid } : {}),
-          email: trimmedEmail,
-          full_name: trimmedName,
-          school_id: trimmedId,
-          role_id: ROLE_IDS[role],
-          status: 'active'
-        })
-        .select()
-        .single();
-
-      if (insertError || !newUser) {
-        if (insertError?.message?.includes('users_school_id_unique')) {
-          throw new Error(`The ID "${trimmedId}" is already registered. Please use your own unique ID.`);
-        }
-        throw new Error(insertError?.message || 'Failed to initialize profile in Supabase users table.');
-      }
-      publicUserId = newUser.id;
-    }
-
-    // 3. Populate role-specific child table (athletes or coaches)
-    if (role === 'student') {
-      const { data: existingAthlete } = await client
-        .from('athletes')
-        .select('id')
-        .eq('user_id', publicUserId)
-        .maybeSingle();
-
-      if (!existingAthlete) {
-        await client.from('athletes').insert({
-          user_id: publicUserId,
-          student_number: trimmedId,
-          department: department || 'Athletics Department',
-          year_level: 1,
-          emergency_contact: 'None'
-        });
-      }
-    } else if (role === 'coach') {
-      const { data: existingCoach } = await client
-        .from('coaches')
-        .select('id')
-        .eq('user_id', publicUserId)
-        .maybeSingle();
-
-      if (!existingCoach) {
-        await client.from('coaches').insert({
-          user_id: publicUserId,
-          employee_number: trimmedId,
-          specialization: specialization || 'Varsity Athletics',
-          license_level: 'Certified'
-        });
-      }
-
-      // Also ensure coach has an athlete borrower profile
-      const { data: existingAth } = await client
-        .from('athletes')
-        .select('id')
-        .eq('user_id', publicUserId)
-        .maybeSingle();
-
-      if (!existingAth) {
-        await client.from('athletes').insert({
-          user_id: publicUserId,
-          student_number: trimmedId,
-          department: 'Athletics Coaching Staff',
-          year_level: 1,
-          emergency_contact: 'Athletics Office'
-        });
-      }
+    if (!signUpData.user) {
+      throw new Error('Registration could not be completed. Please try again.');
     }
 
     return {
       success: true,
-      authUid,
-      userId: publicUserId,
+      authUid: signUpData.user.id,
       email: trimmedEmail,
       fullName: trimmedName,
-      role
+      role: 'student' as const
     };
   },
 
   async registerStudent(email: string, password: string, fullName: string, schoolId: string) {
-    return this.registerUser({ email, password, fullName, schoolId, role: 'student' });
+    return this.registerUser({ email, password, fullName, schoolId });
   },
 
   async signOut(): Promise<void> {

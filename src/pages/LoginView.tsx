@@ -29,7 +29,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
   const [regPassword, setRegPassword] = useState('');
   const [regFullName, setRegFullName] = useState('');
   const [regSchoolId, setRegSchoolId] = useState('');
-  const [regRole, setRegRole] = useState<'student' | 'coach' | 'staff'>('student');
 
   // Always start with empty fields and clear browser auto-population
   useEffect(() => {
@@ -97,21 +96,21 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
 
     try {
-      const finalSchoolId = regSchoolId.trim() || (() => {
+      const enteredSchoolId = regSchoolId.trim();
+      const finalSchoolId = enteredSchoolId ? enteredSchoolId.replace(/\D/g, '') : (() => {
         const randomValue = new Uint32Array(1);
         window.crypto.getRandomValues(randomValue);
         return `2026${String((randomValue[0] % 90000) + 10000)}`;
       })();
-      if (finalSchoolId.length > 15) {
-        throw new Error('ID must be 15 characters or less.');
+      if (!/^\d{7,15}$/.test(finalSchoolId)) {
+        throw new Error('Student ID must contain 7 to 15 digits.');
       }
 
       const registration = await authService.registerUser({
         email: regEmail.trim(),
         password: regPassword,
         fullName: regFullName.trim(),
-        schoolId: finalSchoolId,
-        role: regRole
+        schoolId: finalSchoolId
       });
 
       setSuccessMessage(
@@ -124,7 +123,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
       setRegPassword('');
       setRegFullName('');
       setRegSchoolId('');
-      setRegRole('student');
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Registration failed.');
     } finally {
@@ -319,34 +317,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
             /* REGISTER FORM */
             <form onSubmit={handleRegisterSubmit}>
 
-              {/* Role Selection (Student, Coach, Staff - Admin excluded) */}
-              <div className="mb-3">
-                <label className="form-label-custom">Role / Account Type <span style={{ color: 'var(--coral, #FF6F59)' }}>*</span></label>
-                <div className="input-group-custom">
-                  <i className="bi bi-person-badge"></i>
-                  <select
-                    value={regRole}
-                    onChange={(e) => setRegRole(e.target.value as 'student' | 'coach' | 'staff')}
-                    style={{
-                      flex: 1,
-                      border: 'none',
-                      background: 'transparent',
-                      padding: '0.65rem 0.75rem',
-                      outline: 'none',
-                      color: '#1E293B',
-                      fontSize: '0.9rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
-                    required
-                  >
-                    <option value="student">Varsity Athlete / Student</option>
-                    <option value="coach">Varsity Coach</option>
-                    <option value="staff">Staff / Equipment Custodian</option>
-                  </select>
-                </div>
-              </div>
-
               <div className="mb-3">
                 <label className="form-label-custom">Full Name <span style={{ color: 'var(--coral, #FF6F59)' }}>*</span></label>
                 <div className="input-group-custom">
@@ -362,25 +332,13 @@ export const LoginView: React.FC<LoginViewProps> = ({
               </div>
 
               <div className="mb-3">
-                <label className="form-label-custom">
-                  {regRole === 'student'
-                    ? 'Student ID Number (e.g. 2024-20411)'
-                    : regRole === 'coach'
-                      ? 'Coach Employee ID (e.g. EMP-2024-001)'
-                      : 'Staff Employee ID (e.g. STAFF-003)'}
-                </label>
+                <label className="form-label-custom">Student ID Number</label>
                 <div className="input-group-custom">
                   <i className="bi bi-card-text"></i>
                   <input
                     type="text"
                     maxLength={15}
-                    placeholder={
-                      regRole === 'student'
-                        ? 'e.g. 202420411'
-                        : regRole === 'coach'
-                          ? 'e.g. EMP-2024-001'
-                          : 'e.g. STAFF-003'
-                    }
+                    placeholder="7 to 15 digits"
                     value={regSchoolId}
                     onChange={(e) => setRegSchoolId(e.target.value)}
                   />
@@ -425,7 +383,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 fontSize: '0.78rem', color: '#1E40AF', marginBottom: '1rem'
               }}>
                 <i className="bi bi-info-circle me-1"></i>
-                New registrations are set to <strong>Pending Verification</strong> until approved in the Admin Dashboard.
+                Student registrations appear as <strong>Pending Verification</strong> until approved in the Admin Dashboard. Coach and staff accounts must be created by an administrator.
               </div>
 
               <button type="submit" className="btn-signin" disabled={loading} style={{ width: '100%' }}>
