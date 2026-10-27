@@ -24,9 +24,16 @@ function getLocalReports(): StaffReport[] {
   }
 }
 
+export function notifyDataUpdated(detail?: any) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('falcon_data_updated', { detail }));
+  }
+}
+
 function saveLocalReports(reports: StaffReport[]) {
   try {
     localStorage.setItem(REPORTS_CACHE_KEY, JSON.stringify(reports));
+    notifyDataUpdated({ type: 'reports', reports });
   } catch {}
 }
 
@@ -42,6 +49,10 @@ function getLocalBookings(): CoachBooking[] {
 function saveLocalBookings(bookings: CoachBooking[]) {
   try {
     localStorage.setItem(BOOKINGS_CACHE_KEY, JSON.stringify(bookings));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('falcon_bookings_updated', { detail: bookings }));
+    }
+    notifyDataUpdated({ type: 'bookings', bookings });
   } catch {}
 }
 
@@ -60,6 +71,7 @@ function saveLocalAlerts(alerts: ReturnAlert[]) {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('falcon_alerts_updated', { detail: alerts }));
     }
+    notifyDataUpdated({ type: 'alerts', alerts });
   } catch {}
 }
 
@@ -531,6 +543,7 @@ export const dashboardApi = {
       })
       .eq('id', data.equipment_id);
 
+    notifyDataUpdated({ type: 'loans', transaction_id: tx.id });
     return { success: true, transaction_id: tx.id };
   },
 
@@ -584,6 +597,7 @@ export const dashboardApi = {
       }
     }
 
+    notifyDataUpdated({ type: 'loans', transaction_id: id });
     return { success: true };
   },
 
@@ -1001,5 +1015,65 @@ export const dashboardApi = {
     if (delErr) throw new Error(delErr.message);
 
     return { success: true };
+  },
+
+  /**
+   * Subscribe to real-time update events (storage mutations, local actions, and Supabase changes)
+   * so dashboards refresh ONLY when something is actually updated, without periodic polling.
+   */
+  subscribeToUpdates(onUpdate: () => void): () => void {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('falcon_')) {
+        onUpdate();
+      }
+    };
+
+    const handleCustomEvent = () => {
+      onUpdate();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', handleStorageChange);
+      window.addEventListener('falcon_data_updated', handleCustomEvent);
+      window.addEventListener('falcon_alerts_updated', handleCustomEvent);
+      window.addEventListener('falcon_bookings_updated', handleCustomEvent);
+    }
+
+    // Supabase Realtime channel subscription for cloud updates
+    let channel: any = null;
+    try {
+      const client = requireSupabaseClient();
+      channel = client.channel(`falcon_realtime_${Math.random().toString(36).slice(2, 9)}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'borrowing_transactions' }, () => {
+          onUpdate();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'coach_bookings' }, () => {
+          onUpdate();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'return_alerts' }, () => {
+          onUpdate();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'equipment' }, () => {
+          onUpdate();
+        })
+        .subscribe();
+    } catch {
+      // Supabase realtime channel not configured or running offline
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorageChange);
+        window.removeEventListener('falcon_data_updated', handleCustomEvent);
+        window.removeEventListener('falcon_alerts_updated', handleCustomEvent);
+        window.removeEventListener('falcon_bookings_updated', handleCustomEvent);
+      }
+      if (channel) {
+        try {
+          const client = requireSupabaseClient();
+          client.removeChannel(channel);
+        } catch {}
+      }
+    };
   }
 };

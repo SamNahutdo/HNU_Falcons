@@ -96,6 +96,15 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
 
   useEffect(() => {
     void loadAll();
+
+    // Refresh ONLY when something is updated
+    const unsubscribe = dashboardApi.subscribeToUpdates(() => {
+      void loadAll();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const showToast = (msg: string) => {

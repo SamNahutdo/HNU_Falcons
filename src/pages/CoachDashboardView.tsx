@@ -105,27 +105,13 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
   useEffect(() => {
     void loadData();
 
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'falcon_return_alerts_cache') {
-        void loadData();
-      }
-    };
-
-    const handleAlertsEvent = () => {
+    // Event-driven auto-refresher: refreshes ONLY when an update occurs
+    const unsubscribe = dashboardApi.subscribeToUpdates(() => {
       void loadData();
-    };
-
-    const pollInterval = setInterval(() => {
-      void loadData();
-    }, 5000);
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('falcon_alerts_updated', handleAlertsEvent);
+    });
 
     return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('falcon_alerts_updated', handleAlertsEvent);
+      unsubscribe();
     };
   }, [userDisplayName, username]);
 

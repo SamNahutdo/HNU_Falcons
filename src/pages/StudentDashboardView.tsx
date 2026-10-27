@@ -116,30 +116,13 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
   useEffect(() => {
     void loadData();
 
-    // Cross-tab synchronization
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'falcon_return_alerts_cache') {
-        void loadData();
-      }
-    };
-
-    // Same-tab synchronization
-    const handleAlertsEvent = () => {
+    // Event-driven auto-refresher: refreshes ONLY when an update occurs
+    const unsubscribe = dashboardApi.subscribeToUpdates(() => {
       void loadData();
-    };
-
-    // Auto-polling for real-time delivery
-    const pollInterval = setInterval(() => {
-      void loadData();
-    }, 5000);
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('falcon_alerts_updated', handleAlertsEvent);
+    });
 
     return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('falcon_alerts_updated', handleAlertsEvent);
+      unsubscribe();
     };
   }, [userDisplayName, username]);
 
