@@ -100,7 +100,7 @@ flowchart TD
     Schema -. defines .-> Supabase
 ```
 
----
+----
 
 ## 👥 Interactive Workspaces
 
