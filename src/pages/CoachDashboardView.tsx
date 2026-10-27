@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
 import { dashboardApi } from '../services/dashboardApi';
-import { CoachBooking, Equipment, BorrowingTransaction } from '../types/database';
+import { CoachBooking, Equipment, BorrowingTransaction, ReturnAlert } from '../types/database';
 
 interface CoachDashboardViewProps {
   userDisplayName: string;
@@ -18,6 +18,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [myLoans, setMyLoans] = useState<BorrowingTransaction[]>([]);
+  const [myAlerts, setMyAlerts] = useState<ReturnAlert[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Borrow modal
@@ -35,9 +36,33 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
       const data = await dashboardApi.getData();
       setBookings(data.bookings);
       setEquipmentList(data.equipment);
-      setMyLoans(data.transactions);
+
+      const coachLoans = data.transactions.filter(t =>
+        (t.borrower_name && t.borrower_name.toLowerCase() === userDisplayName.toLowerCase()) ||
+        (t.borrower_school_id && username.toLowerCase().includes(t.borrower_school_id.toLowerCase()))
+      );
+      setMyLoans(coachLoans);
+
+      const coachAlerts = data.alerts.filter(a =>
+        !a.is_read && (
+          (a.recipient_name && a.recipient_name.toLowerCase() === userDisplayName.toLowerCase()) ||
+          (a.recipient_school_id && username.toLowerCase().includes(a.recipient_school_id.toLowerCase())) ||
+          coachLoans.some(l => l.id === a.transaction_id)
+        )
+      );
+      setMyAlerts(coachAlerts);
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load dashboard data.');
+    }
+  };
+
+  const handleDismissAlert = async (alertId: string) => {
+    try {
+      await dashboardApi.markAlertAsRead(alertId);
+      setMyAlerts(prev => prev.filter(a => a.id !== alertId));
+      showToast('Notification acknowledged.');
+    } catch {
+      setMyAlerts(prev => prev.filter(a => a.id !== alertId));
     }
   };
 
@@ -154,6 +179,37 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
         <div className="alert alert-primary py-2 px-3 mb-4 rounded-3 d-flex justify-content-between align-items-center shadow-sm">
           <span><i className="bi bi-check-circle-fill me-2"></i>{toastMessage}</span>
           <button type="button" onClick={() => setToastMessage(null)} className="btn-close btn-close-sm"></button>
+        </div>
+      )}
+
+      {/* DEADLINE ALERTS FROM STAFF DESK (IF ANY) */}
+      {myAlerts.length > 0 && (
+        <div className="alert alert-warning py-3 px-3 mb-4 rounded-3 shadow-sm border-warning">
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <div className="d-flex align-items-center gap-2">
+              <i className="bi bi-bell-fill text-danger fs-5"></i>
+              <span className="fw-bold text-dark">Return Deadline Notification from Equipment Desk</span>
+            </div>
+            <span className="badge bg-danger rounded-pill px-2 py-1">{myAlerts.length} Action Required</span>
+          </div>
+          {myAlerts.map(alt => (
+            <div key={alt.id} className="d-flex justify-content-between align-items-center bg-white p-2 px-3 rounded-2 mb-2 border border-warning-subtle shadow-sm flex-wrap gap-2">
+              <div className="small text-dark">
+                <strong>{alt.equipment_name}</strong>: {alt.message}
+                <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                  Expected Return: <span className="text-danger fw-semibold">{alt.expected_return_date}</span> · Dispatched: {new Date(alt.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => handleDismissAlert(alt.id)}
+                title="Acknowledge alert"
+              >
+                <i className="bi bi-check2 me-1"></i>Acknowledge
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

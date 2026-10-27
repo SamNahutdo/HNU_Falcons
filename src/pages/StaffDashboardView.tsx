@@ -105,12 +105,13 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
 
   // 1. Alert Student or Coach regarding return deadline
   const handleSendAlert = async (tx: BorrowingTransaction) => {
+    const defaultMsg = `Please return ${tx.items?.map(item => item.equipment?.name).filter(Boolean).join(', ') || 'borrowed sports equipment'} by ${tx.expected_return_date}.`;
+    const customMsg = window.prompt(`Send return deadline alert to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''}):`, defaultMsg);
+    if (customMsg === null) return;
+
     try {
-      await dashboardApi.sendReturnAlert(
-        tx.id,
-        `Please return ${tx.items?.map(item => item.equipment?.name).filter(Boolean).join(', ') || 'borrowed sports equipment'} by ${tx.expected_return_date}.`
-      );
-      showToast(`Return alert sent to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''})`);
+      await dashboardApi.sendReturnAlert(tx.id, customMsg.trim() || defaultMsg);
+      showToast(`Return alert dispatched to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''})`);
       await loadAll();
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not send return alert.');

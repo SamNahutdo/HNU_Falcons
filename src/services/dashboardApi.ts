@@ -13,6 +13,7 @@ import {
 
 const REPORTS_CACHE_KEY = 'falcon_staff_reports_cache';
 const BOOKINGS_CACHE_KEY = 'falcon_coach_bookings_cache';
+const ALERTS_CACHE_KEY = 'falcon_return_alerts_cache';
 
 function getLocalReports(): StaffReport[] {
   try {
@@ -41,6 +42,21 @@ function getLocalBookings(): CoachBooking[] {
 function saveLocalBookings(bookings: CoachBooking[]) {
   try {
     localStorage.setItem(BOOKINGS_CACHE_KEY, JSON.stringify(bookings));
+  } catch {}
+}
+
+function getLocalAlerts(): ReturnAlert[] {
+  try {
+    const raw = localStorage.getItem(ALERTS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalAlerts(alerts: ReturnAlert[]) {
+  try {
+    localStorage.setItem(ALERTS_CACHE_KEY, JSON.stringify(alerts));
   } catch {}
 }
 
@@ -82,19 +98,62 @@ export const dashboardApi = {
     if (coRes.error) console.warn('[dashboardApi] Coaches fetch error:', coRes.error);
     if (txRes.error) console.warn('[dashboardApi] Transactions fetch error:', txRes.error);
 
+    // Fetch and merge return alerts
+    const localAlerts = getLocalAlerts();
+    let remoteAlerts: ReturnAlert[] = [];
+    try {
+      const altRes = await client.from('return_alerts').select(`
+        *,
+        recipient:users(full_name, school_id, role:roles(name)),
+        transaction:borrowing_transactions(*, items:borrowing_items(*, equipment:equipment(*)))
+      `).order('sent_at', { ascending: false });
+
+      if (altRes.data && !altRes.error) {
+        remoteAlerts = (altRes.data as any[]).map(a => ({
+          id: a.id,
+          transaction_id: a.transaction_id,
+          recipient_name: a.recipient?.full_name || 'Borrower',
+          recipient_school_id: a.recipient?.school_id || '',
+          recipient_role: (a.recipient?.role?.name as 'student' | 'coach') || 'student',
+          equipment_name: a.transaction?.items?.map((i: any) => i.equipment?.name).filter(Boolean).join(', ') || 'Sports Equipment',
+          expected_return_date: a.transaction?.expected_return_date || '',
+          message: a.message,
+          sent_at: a.sent_at,
+          is_read: Boolean(a.is_read)
+        }));
+      }
+    } catch {
+      // Remote return_alerts table not available in Supabase schema cache
+    }
+
+    const alertMap = new Map<string, ReturnAlert>();
+    for (const a of localAlerts) alertMap.set(a.id, a);
+    for (const a of remoteAlerts) alertMap.set(a.id, a);
+    const alerts: ReturnAlert[] = Array.from(alertMap.values())
+      .sort((a, b) => b.sent_at.localeCompare(a.sent_at));
+
+    const alertsByTx = new Map<string, ReturnAlert>();
+    for (const a of alerts) {
+      if (!alertsByTx.has(a.transaction_id)) {
+        alertsByTx.set(a.transaction_id, a);
+      }
+    }
+
     const rawTransactions = (txRes.data || []) as any[];
     const transactions: BorrowingTransaction[] = rawTransactions.map(t => {
       const athleteUser = Array.isArray(t.athlete?.user) ? t.athlete?.user[0] : t.athlete?.user;
       const borrowerRole = (Array.isArray(athleteUser?.role) ? athleteUser?.role[0]?.name : athleteUser?.role?.name) || 'student';
       const borrowerName = athleteUser?.full_name || 'Borrower';
       const borrowerSchoolId = athleteUser?.school_id || t.athlete?.student_number || '';
+      const existingAlert = alertsByTx.get(t.id);
 
       return {
         ...t,
         borrower_name: borrowerName,
         borrower_school_id: borrowerSchoolId,
         borrower_role: borrowerRole,
-        alert_sent: false
+        alert_sent: Boolean(existingAlert),
+        last_alert_sent: existingAlert?.sent_at
       };
     });
 
@@ -174,8 +233,6 @@ export const dashboardApi = {
     }
     const reports: StaffReport[] = Array.from(reportMap.values())
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
-
-    const alerts: ReturnAlert[] = [];
 
     return {
       equipment: (eqRes.data || []) as Equipment[],
@@ -527,7 +584,94 @@ export const dashboardApi = {
     return { success: true };
   },
 
-  async sendReturnAlert(_transaction_id: string, _message: string) {
+  async sendReturnAlert(transaction_id: string, message?: string) {
+    const client = requireSupabaseClient();
+
+    // Look up transaction to fetch borrower details
+    let recipientName = 'Borrower';
+    let recipientSchoolId = '';
+    let recipientRole: 'student' | 'coach' = 'student';
+    let equipmentName = 'Borrowed sports equipment';
+    let expectedReturnDate = new Date().toISOString().slice(0, 10);
+    let recipientUserId = '';
+
+    try {
+      const { data: tx } = await client
+        .from('borrowing_transactions')
+        .select(`
+          *,
+          athlete:athletes(*, user:users(id, full_name, school_id, email, role:roles(name))),
+          items:borrowing_items(*, equipment:equipment(*))
+        `)
+        .eq('id', transaction_id)
+        .maybeSingle();
+
+      if (tx) {
+        const u = Array.isArray(tx.athlete?.user) ? tx.athlete?.user[0] : tx.athlete?.user;
+        if (u?.full_name) recipientName = u.full_name;
+        if (u?.school_id) recipientSchoolId = u.school_id;
+        if (u?.id) recipientUserId = u.id;
+        if (u?.role?.name === 'coach') recipientRole = 'coach';
+        if (tx.expected_return_date) expectedReturnDate = tx.expected_return_date;
+
+        const eqNames = tx.items?.map((item: any) => item.equipment?.name).filter(Boolean);
+        if (eqNames && eqNames.length > 0) {
+          equipmentName = eqNames.join(', ');
+        } else if (tx.remarks) {
+          equipmentName = tx.remarks;
+        }
+      }
+    } catch (err) {
+      console.warn('[dashboardApi] Error fetching transaction for alert:', err);
+    }
+
+    const alertMessage = message || `Please return ${equipmentName} by ${expectedReturnDate}.`;
+    const alertId = crypto.randomUUID();
+    const newAlert: ReturnAlert = {
+      id: alertId,
+      transaction_id,
+      recipient_name: recipientName,
+      recipient_school_id: recipientSchoolId,
+      recipient_role: recipientRole,
+      equipment_name: equipmentName,
+      expected_return_date: expectedReturnDate,
+      message: alertMessage,
+      sent_at: new Date().toISOString(),
+      is_read: false
+    };
+
+    const currentAlerts = getLocalAlerts();
+    saveLocalAlerts([newAlert, ...currentAlerts.filter(a => a.id !== alertId)]);
+
+    // Try inserting into Supabase return_alerts table if present
+    try {
+      if (recipientUserId) {
+        await client.from('return_alerts').insert([{
+          id: alertId,
+          transaction_id,
+          recipient_user_id: recipientUserId,
+          message: alertMessage,
+          sent_at: newAlert.sent_at,
+          is_read: false
+        }]);
+      }
+    } catch {
+      // Table may not exist remotely; local storage cache ensures functional alert dispatch
+    }
+
+    return newAlert;
+  },
+
+  async markAlertAsRead(alertId: string) {
+    const currentAlerts = getLocalAlerts();
+    const updated = currentAlerts.map(a => a.id === alertId ? { ...a, is_read: true } : a);
+    saveLocalAlerts(updated);
+
+    try {
+      const client = requireSupabaseClient();
+      await client.from('return_alerts').update({ is_read: true }).eq('id', alertId);
+    } catch {}
+
     return { success: true };
   },
 
