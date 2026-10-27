@@ -79,7 +79,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
       setTransactions(data.transactions);
       setBookings(data.bookings);
       setReports(data.reports);
-      setRegisteredBorrowers(data.users.filter(user => user.is_verified && user.status === 'active'));
+      setRegisteredBorrowers(data.users.filter(user => user.status === 'active'));
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load staff dashboard data.');
     }
@@ -213,7 +213,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
   // 7. Issue Direct Checkout
   const handleExecuteCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    const borrower = registeredBorrowers.find(b => b.school_id === loanBorrowerSchoolId);
+    const borrower = registeredBorrowers.find(b => b.school_id === loanBorrowerSchoolId || b.id === loanBorrowerSchoolId);
     if (!borrower || !loanEquipmentId || !loanReturnDate) {
       showToast('Please fill all required checkout fields.');
       return;
@@ -221,7 +221,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
 
     try {
       await dashboardApi.createLoan({
-        borrower_school_id: borrower.school_id,
+        borrower_school_id: borrower.school_id || borrower.id,
         equipment_id: loanEquipmentId,
         quantity: Number(loanQuantity),
         expected_return_date: loanReturnDate,
@@ -1136,8 +1136,8 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
                     >
                       <option value="">-- Choose Student or Coach --</option>
                       {registeredBorrowers.map(b => (
-                        <option key={b.id} value={b.school_id}>
-                          {b.full_name} ({b.school_id} • {b.role.toUpperCase()})
+                        <option key={b.id} value={b.school_id || b.id}>
+                          {b.full_name} ({b.school_id || 'ID Pending'} • {b.role.toUpperCase()})
                         </option>
                       ))}
                     </select>

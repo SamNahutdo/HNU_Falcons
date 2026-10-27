@@ -382,7 +382,7 @@ export const authService = {
           school_id: trimmedId,
           full_name: trimmedName,
           role_id: ROLE_IDS[role],
-          status: 'inactive'
+          status: 'active'
         })
         .eq('id', existingUser.id);
       publicUserId = existingUser.id;
@@ -395,7 +395,7 @@ export const authService = {
           full_name: trimmedName,
           school_id: trimmedId,
           role_id: ROLE_IDS[role],
-          status: 'inactive'
+          status: 'active'
         })
         .select()
         .single();
@@ -439,6 +439,23 @@ export const authService = {
           employee_number: trimmedId,
           specialization: specialization || 'Varsity Athletics',
           license_level: 'Certified'
+        });
+      }
+
+      // Also ensure coach has an athlete borrower profile
+      const { data: existingAth } = await client
+        .from('athletes')
+        .select('id')
+        .eq('user_id', publicUserId)
+        .maybeSingle();
+
+      if (!existingAth) {
+        await client.from('athletes').insert({
+          user_id: publicUserId,
+          student_number: trimmedId,
+          department: 'Athletics Coaching Staff',
+          year_level: 1,
+          emergency_contact: 'Athletics Office'
         });
       }
     }

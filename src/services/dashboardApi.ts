@@ -54,7 +54,7 @@ export const dashboardApi = {
       client.from('coaches').select('*, user:users(id, full_name, school_id, status)'),
       client.from('borrowing_transactions').select(`
         *,
-        athlete:athletes(*, user:users(full_name, school_id)),
+        athlete:athletes(*, user:users(id, full_name, school_id, email, role:roles(name))),
         approver:users(id, full_name),
         items:borrowing_items(*, equipment:equipment(*))
       `).order('borrow_date', { ascending: false }),
@@ -85,10 +85,9 @@ export const dashboardApi = {
     const rawTransactions = (txRes.data || []) as any[];
     const transactions: BorrowingTransaction[] = rawTransactions.map(t => {
       const athleteUser = Array.isArray(t.athlete?.user) ? t.athlete?.user[0] : t.athlete?.user;
-      const coachUser = Array.isArray(t.coach?.user) ? t.coach?.user[0] : t.coach?.user;
-      const borrowerName = athleteUser?.full_name || coachUser?.full_name || 'Borrower';
-      const borrowerSchoolId = athleteUser?.school_id || coachUser?.school_id || '';
-      const borrowerRole = t.athlete ? 'student' : 'coach';
+      const borrowerRole = (Array.isArray(athleteUser?.role) ? athleteUser?.role[0]?.name : athleteUser?.role?.name) || 'student';
+      const borrowerName = athleteUser?.full_name || 'Borrower';
+      const borrowerSchoolId = athleteUser?.school_id || t.athlete?.student_number || '';
 
       return {
         ...t,
@@ -330,37 +329,115 @@ export const dashboardApi = {
       throw new Error(`Insufficient stock. Only ${eq.available_quantity} available.`);
     }
 
-    // 2. Find borrower athlete or coach
-    let athleteId: string | null = null;
-    let coachId: string | null = null;
+    // 2. Identify the target borrower user
+    let targetIdentifier = data.borrower_school_id?.trim();
+    if (!targetIdentifier && profile) {
+      targetIdentifier = profile.schoolId || profile.email || profile.fullName;
+    }
 
-    if (data.borrower_school_id) {
-      const { data: bUser } = await client
+    let borrowerUser: any = null;
+
+    if (targetIdentifier) {
+      // Look up by school_id
+      const { data: uBySchool } = await client
         .from('users')
-        .select('id, role:roles(name), athlete:athletes(id), coach:coaches(id)')
-        .ilike('school_id', data.borrower_school_id.trim())
+        .select('id, full_name, school_id, email, role:roles(name)')
+        .ilike('school_id', targetIdentifier)
         .maybeSingle();
 
-      if (bUser) {
-        const b = bUser as any;
-        const rName = Array.isArray(b.role) ? b.role[0]?.name : b.role?.name;
-        if (rName === 'coach') {
-          const c = Array.isArray(b.coach) ? b.coach[0] : b.coach;
-          coachId = c?.id || null;
-        } else {
-          const a = Array.isArray(b.athlete) ? b.athlete[0] : b.athlete;
-          athleteId = a?.id || null;
-        }
+      if (uBySchool) borrowerUser = uBySchool;
+
+      // Look up by email if not found
+      if (!borrowerUser) {
+        const { data: uByEmail } = await client
+          .from('users')
+          .select('id, full_name, school_id, email, role:roles(name)')
+          .ilike('email', targetIdentifier)
+          .maybeSingle();
+        if (uByEmail) borrowerUser = uByEmail;
+      }
+
+      // Look up by user id if targetIdentifier is a valid UUID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetIdentifier);
+      if (!borrowerUser && isUuid) {
+        const { data: uById } = await client
+          .from('users')
+          .select('id, full_name, school_id, email, role:roles(name)')
+          .eq('id', targetIdentifier)
+          .maybeSingle();
+        if (uById) borrowerUser = uById;
+      }
+
+      // Look up by full_name if still not found
+      if (!borrowerUser) {
+        const { data: uByName } = await client
+          .from('users')
+          .select('id, full_name, school_id, email, role:roles(name)')
+          .ilike('full_name', targetIdentifier)
+          .maybeSingle();
+        if (uByName) borrowerUser = uByName;
       }
     }
 
-    if (!athleteId && !coachId) {
-      // Use fallback athlete in database
-      const { data: firstAthlete } = await client.from('athletes').select('id').limit(1).single();
-      athleteId = firstAthlete?.id || null;
+    // Fall back to currently authenticated profile user if still not found
+    if (!borrowerUser && profile?.userId) {
+      const { data: uProfile } = await client
+        .from('users')
+        .select('id, full_name, school_id, email, role:roles(name)')
+        .eq('id', profile.userId)
+        .maybeSingle();
+      if (uProfile) borrowerUser = uProfile;
     }
 
-    // 3. Create borrowing transaction
+    if (!borrowerUser) {
+      throw new Error(`Please select or specify a valid registered borrower (${targetIdentifier || 'unknown'}).`);
+    }
+
+    // 3. Ensure borrower has an athlete record in the database
+    let athleteId: string | null = null;
+    const { data: existingAth } = await client
+      .from('athletes')
+      .select('id')
+      .eq('user_id', borrowerUser.id)
+      .maybeSingle();
+
+    if (existingAth?.id) {
+      athleteId = existingAth.id;
+    } else {
+      // Auto-create borrower row in athletes table
+      const rName = (Array.isArray(borrowerUser.role) ? borrowerUser.role[0]?.name : borrowerUser.role?.name) || 'student';
+      const studentNum = borrowerUser.school_id || `${rName.toUpperCase()}-${borrowerUser.id.slice(0, 8)}`;
+      const department = rName === 'coach' ? 'Athletics Coaching Staff' : 'Athletics Department';
+
+      const { data: newAth, error: athErr } = await client
+        .from('athletes')
+        .insert({
+          user_id: borrowerUser.id,
+          student_number: studentNum,
+          department,
+          year_level: 1,
+          emergency_contact: 'Athletics Office'
+        })
+        .select('id')
+        .single();
+
+      if (!athErr && newAth) {
+        athleteId = newAth.id;
+      } else {
+        const { data: retryAth } = await client
+          .from('athletes')
+          .select('id')
+          .eq('user_id', borrowerUser.id)
+          .maybeSingle();
+        if (retryAth?.id) athleteId = retryAth.id;
+      }
+    }
+
+    if (!athleteId) {
+      throw new Error(`Could not link or create borrower record for ${borrowerUser.full_name}.`);
+    }
+
+    // 4. Create borrowing transaction
     const { data: tx, error: txErr } = await client
       .from('borrowing_transactions')
       .insert([{
@@ -375,7 +452,7 @@ export const dashboardApi = {
 
     if (txErr || !tx) throw new Error(txErr?.message || 'Could not create loan transaction.');
 
-    // 4. Create borrowing item line
+    // 5. Create borrowing item line
     await client.from('borrowing_items').insert([{
       transaction_id: tx.id,
       equipment_id: data.equipment_id,
@@ -383,7 +460,7 @@ export const dashboardApi = {
       return_status: 'borrowed'
     }]);
 
-    // 5. Update equipment quantity
+    // 6. Update equipment quantity
     const newQty = Math.max(0, eq.available_quantity - data.quantity);
     await client
       .from('equipment')

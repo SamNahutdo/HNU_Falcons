@@ -10,7 +10,7 @@ interface CoachDashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentTab = 'dashboard', onNavigate }) => {
+export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisplayName, username, currentTab = 'dashboard', onNavigate }) => {
   const effectiveTab =
     currentTab === 'bookings' ? 'bookings' :
     currentTab === 'borrowing' ? 'borrow' : 'dashboard';
@@ -88,6 +88,7 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ currentT
 
     try {
       await dashboardApi.createLoan({
+        borrower_school_id: username || userDisplayName,
         equipment_id: selectedEq.id,
         quantity: Number(borrowQuantity),
         expected_return_date: borrowReturnDate,

@@ -10,7 +10,7 @@ interface StudentDashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
-export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ currentTab = 'equipment', onNavigate }) => {
+export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ userDisplayName, username, currentTab = 'equipment', onNavigate }) => {
   const effectiveTab =
     currentTab === 'bookings' ? 'book_coach' :
     currentTab === 'activity' ? 'my_activity' : 'available_items';
@@ -82,6 +82,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ curr
 
     try {
       await dashboardApi.createLoan({
+        borrower_school_id: username || userDisplayName,
         equipment_id: borrowModalEq.id,
         quantity: Number(borrowQty),
         expected_return_date: borrowReturnDate,
