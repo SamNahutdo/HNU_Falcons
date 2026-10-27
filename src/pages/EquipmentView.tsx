@@ -14,8 +14,6 @@ import {
   ArrowUp,
   ArrowDown,
   RotateCcw,
-  SlidersHorizontal,
-  X
 } from 'lucide-react';
 import { Equipment, Sport, UserRole } from '../types/database';
 import { databaseService } from '../services/supabase';
@@ -338,6 +336,49 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
             <option value="out_of_stock">Out of Stock</option>
             <option value="under_maintenance">Under Maintenance</option>
           </select>
+
+          <select
+            style={{
+              padding: '0.55rem 1.15rem',
+              borderRadius: '9999px',
+              border: '1.5px solid #E2E8F0',
+              background: '#FFFFFF',
+              color: '#334155',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+            value={selectedCondition}
+            onChange={(e) => setSelectedCondition(e.target.value)}
+            aria-label="Filter by condition"
+          >
+            <option value="all">All Conditions</option>
+            <option value="new">New</option>
+            <option value="good">Good</option>
+            <option value="fair">Fair</option>
+            <option value="poor">Poor</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={resetFilters}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                border: 'none',
+                background: 'transparent',
+                color: '#475569',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <RotateCcw size={14} /> Reset
+            </button>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -407,12 +448,32 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
           <table className="table-modern">
             <thead>
               <tr>
-                <th>Code & Name</th>
+                <th>
+                  <button type="button" onClick={() => handleSort('name')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Code &amp; Name {sortBy === 'name' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
+                  </button>
+                </th>
                 <th>Discipline</th>
-                <th>Category</th>
-                <th>Availability Ratio</th>
-                <th>Condition</th>
-                <th>Status</th>
+                <th>
+                  <button type="button" onClick={() => handleSort('category')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Category {sortBy === 'category' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" onClick={() => handleSort('available_quantity')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Availability Ratio {sortBy === 'available_quantity' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" onClick={() => handleSort('condition')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Condition {sortBy === 'condition' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
+                  </button>
+                </th>
+                <th>
+                  <button type="button" onClick={() => handleSort('status')} style={{ border: 0, background: 'none', font: 'inherit', color: 'inherit', cursor: 'pointer' }}>
+                    Status {sortBy === 'status' ? (sortOrder === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />) : <ArrowUpDown size={14} />}
+                  </button>
+                </th>
                 {currentRole !== 'student' && <th style={{ textAlign: 'right' }}>Actions</th>}
               </tr>
             </thead>
