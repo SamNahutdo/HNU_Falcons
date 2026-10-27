@@ -116,8 +116,8 @@ function toRegisteredAccount(user: {
     department: user.athlete?.department,
     specialization: user.coach?.specialization,
     is_online: user.is_online,
-    status: user.status === 'suspended' ? 'suspended' as const : 'active' as const,
-    is_verified: user.status !== 'inactive',
+    status: user.status === 'inactive' ? 'inactive' as const : user.status === 'suspended' ? 'suspended' as const : 'active' as const,
+    is_verified: user.status === 'active',
     created_at: user.created_at.toISOString()
   };
 }

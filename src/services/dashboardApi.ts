@@ -138,8 +138,8 @@ export const dashboardApi = {
         role: roleName,
         department: athlete?.department || 'Athletics Department',
         specialization: coach?.specialization,
-        is_online: true,
-        status: u.status === 'suspended' ? 'suspended' : 'active',
+        is_online: Boolean(u.is_online),
+        status: u.status === 'inactive' ? 'inactive' : u.status === 'suspended' ? 'suspended' : 'active',
         is_verified: u.status === 'active',
         created_at: u.created_at
       };
@@ -689,6 +689,19 @@ export const dashboardApi = {
 
   async updateUser(id: string, action: 'verify' | 'disable' | 'toggle_presence') {
     const client = requireSupabaseClient();
+    if (action === 'toggle_presence') {
+      const { data: currentUser } = await client.from('users').select('is_online').eq('id', id).maybeSingle();
+      const nextOnline = currentUser ? !currentUser.is_online : true;
+      const { data, error } = await client
+        .from('users')
+        .update({ is_online: nextOnline })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    }
+
     const newStatus = action === 'disable' ? 'suspended' : 'active';
 
     const { data, error } = await client

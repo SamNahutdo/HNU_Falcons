@@ -157,8 +157,11 @@ async function getActiveProfile(authUid: string, userEmail?: string) {
   };
   const role = Array.isArray(profile.role) ? profile.role[0]?.name : profile.role?.name;
 
+  if (profile.status === 'suspended') {
+    throw new Error('Your account has been suspended by an administrator. Please contact the athletics department.');
+  }
   if (profile.status !== 'active') {
-    throw new Error('Your account is pending administrator verification. Please wait for an administrator to verify your account before logging in.');
+    throw new Error('Your account is pending administrator approval. Please wait for an administrator to verify and approve your registration before logging in.');
   }
   if (!isUserRole(role)) {
     throw new Error('Your account has an invalid role. Contact an administrator.');
@@ -353,11 +356,14 @@ export const authService = {
         // Check if user is already present in public.users
         const { data: pubUser } = await client
           .from('users')
-          .select('id, email, full_name')
+          .select('id, email, full_name, status')
           .ilike('email', trimmedEmail)
           .maybeSingle();
 
         if (pubUser) {
+          if (pubUser.status === 'inactive') {
+            throw new Error('This account is already registered and is currently pending administrator approval. Please wait for an administrator to approve your account.');
+          }
           throw new Error('This account is already registered. Please go to the Log In tab to sign in.');
         }
         // User exists in auth.users but is missing in public.users: continue to insert into public.users below!

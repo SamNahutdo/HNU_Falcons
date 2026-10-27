@@ -29,7 +29,7 @@ export interface RegisteredAccount {
   department?: string;
   specialization?: string;
   is_online: boolean;
-  status: 'active' | 'suspended';
+  status: 'active' | 'inactive' | 'suspended';
   is_verified: boolean;
   created_at: string;
 }

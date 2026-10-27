@@ -66,14 +66,17 @@ export const LoginView: React.FC<LoginViewProps> = ({
       setFailedAttempts(0);
       onLogin(profile.role, profile.fullName, profile.email, profile.schoolId ?? undefined);
     } catch (err: unknown) {
-      const nextFail = failedAttempts + 1;
-      setFailedAttempts(nextFail);
-      if (nextFail >= 4) {
-        setLockoutSeconds(30);
-        setErrorMessage('Too many failed sign-in attempts. Portal locked for 30 seconds to prevent brute-force.');
-      } else {
-        setErrorMessage(err instanceof Error ? err.message : 'Login failed. Check your credentials.');
+      const msg = err instanceof Error ? err.message : 'Login failed. Check your credentials.';
+      if (!msg.toLowerCase().includes('pending administrator')) {
+        const nextFail = failedAttempts + 1;
+        setFailedAttempts(nextFail);
+        if (nextFail >= 4) {
+          setLockoutSeconds(30);
+          setErrorMessage('Too many failed sign-in attempts. Portal locked for 30 seconds to prevent brute-force.');
+          return;
+        }
       }
+      setErrorMessage(msg);
     } finally {
       setLoading(false);
     }
@@ -115,7 +118,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
       });
 
       setSuccessMessage(
-        `Registration submitted for ${registration.fullName} as ${registration.role.toUpperCase()} (ID: ${finalSchoolId})! Your account is now pending administrator verification in the Admin Dashboard.`
+        `Registration submitted for ${registration.fullName} as ${registration.role.toUpperCase()} (ID: ${finalSchoolId})! Your account is pending administrator approval before you can sign in. Please wait for an administrator to verify and approve your account.`
       );
       setActiveMode('login');
       setIdentifier(registration.email);

@@ -38,7 +38,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
   const [transactions, setTransactions] = useState<BorrowingTransaction[]>([]);
   const [bookings, setBookings] = useState<CoachBooking[]>([]);
   const [reports, setReports] = useState<StaffReport[]>([]);
-  const [activeUserTab, setActiveUserTab] = useState<'all' | 'admin' | 'staff' | 'coach' | 'student'>('all');
+  const [activeUserTab, setActiveUserTab] = useState<'all' | 'admin' | 'staff' | 'coach' | 'student' | 'pending'>('all');
   const [userRemovalError, setUserRemovalError] = useState<string | null>(null);
 
   // Add Admin modal state
@@ -181,6 +181,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     }
   };
 
+  const handleRejectUser = async (user: RegisteredAccount) => {
+    const confirmed = window.confirm(
+      `Reject registration for ${user.full_name} (${user.role.toUpperCase()})? This application will be removed from the database.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await dashboardApi.deleteUser(user.id);
+      await loadData();
+    } catch (error: unknown) {
+      window.alert(error instanceof Error ? error.message : 'Could not reject this account.');
+    }
+  };
+
   const search = searchTerm.trim().toLowerCase();
   const dashboardAccounts = registeredUsers.filter(user =>
     !search ||
@@ -200,6 +214,9 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
           ? 'student'
           : null;
   const filteredUsers = registeredUsers.filter(u => {
+    if (activeUserTab === 'pending' && currentTab === 'dashboard') {
+      return !u.is_verified;
+    }
     const selectedRole = pageRole || (currentTab === 'dashboard' ? activeUserTab : 'all');
     const matchesTab = selectedRole === 'all' || u.role === selectedRole;
     const matchesSearch =
@@ -240,10 +257,12 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
     report.status.includes(search)
   );
 
-  const adminCount = registeredUsers.filter(u => u.role === 'admin').length;
-  const staffCount = registeredUsers.filter(u => u.role === 'staff').length;
-  const coachCount = registeredUsers.filter(u => u.role === 'coach').length;
-  const studentCount = registeredUsers.filter(u => u.role === 'student').length;
+  const verifiedUsers = registeredUsers.filter(u => u.is_verified);
+  const adminCount = verifiedUsers.filter(u => u.role === 'admin').length;
+  const staffCount = verifiedUsers.filter(u => u.role === 'staff').length;
+  const coachCount = verifiedUsers.filter(u => u.role === 'coach').length;
+  const studentCount = verifiedUsers.filter(u => u.role === 'student').length;
+  const pendingCount = pendingUsers.length;
   const activeLoansCount = transactions.filter(t => t.status === 'active' || t.status === 'overdue').length;
   const pendingReportsCount = reports.filter(r => r.status === 'submitted').length;
   const today = new Date();
@@ -319,6 +338,28 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             />
           </header>
 
+          {pendingCount > 0 && (
+            <div
+              className="alert alert-warning d-flex align-items-center justify-content-between mb-4 shadow-sm"
+              style={{ borderRadius: '12px', border: '1px solid #FCD34D', background: '#FFFBEB', padding: '0.85rem 1.25rem' }}
+            >
+              <div className="d-flex align-items-center gap-3">
+                <i className="bi bi-person-exclamation text-warning fs-3"></i>
+                <div>
+                  <strong className="text-dark">New Registrations Pending Approval ({pendingCount})</strong>
+                  <div className="small text-muted">New user accounts require administrator verification and approval before they become registered.</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-warning text-dark fw-bold px-3 shadow-sm"
+                onClick={() => onNavigate('admin-verifications')}
+              >
+                Review & Approve
+              </button>
+            </div>
+          )}
+
           <div className="admin-stat-grid">
             <button type="button" className="admin-stat-card stat-tint-rose" onClick={() => onNavigate('admin-admins')}>
               <span className="admin-stat-label">Admins</span>
@@ -335,6 +376,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <button type="button" className="admin-stat-card stat-tint-cyan" onClick={() => onNavigate('admin-students')}>
               <span className="admin-stat-label">Students Registered</span>
               <strong>{studentCount}</strong>
+            </button>
+            <button
+              type="button"
+              className={`admin-stat-card ${pendingCount > 0 ? 'stat-tint-amber shadow-sm' : ''}`}
+              onClick={() => onNavigate('admin-verifications')}
+              style={pendingCount > 0 ? { border: '2px solid #F59E0B' } : {}}
+            >
+              <span className="admin-stat-label">Pending Approval</span>
+              <strong style={pendingCount > 0 ? { color: '#B45309' } : {}}>{pendingCount}</strong>
             </button>
             <button type="button" className="admin-stat-card stat-tint-green" onClick={() => onNavigate('admin-loans')}>
               <span className="admin-stat-label">Active Loans</span>
@@ -524,13 +574,24 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       <td className="text-secondary">{user.department || user.specialization || 'Athletics'}</td>
                       <td>{new Date(user.created_at).toLocaleDateString()}</td>
                       <td className="text-end">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-success"
-                          onClick={() => void handleVerifyUser(user.id)}
-                        >
-                          <i className="bi bi-check-circle me-1"></i>Verify
-                        </button>
+                        <div className="d-flex justify-content-end gap-2">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm px-3"
+                            onClick={() => void handleVerifyUser(user.id)}
+                            title="Approve this user account"
+                          >
+                            <i className="bi bi-check-circle"></i> Approve
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1 px-3"
+                            onClick={() => void handleRejectUser(user)}
+                            title="Reject and remove registration"
+                          >
+                            <i className="bi bi-x-circle"></i> Reject
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -632,6 +693,22 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
             <h3 className="stat-value text-dark">{pendingReportsCount}</h3>
           </div>
         </div>
+
+        {/* Pending Verification */}
+        <div className="col-12 col-sm-6 col-xl">
+          <div
+            className="card-stat-modern h-100"
+            onClick={() => onNavigate('admin-verifications')}
+            style={{ cursor: 'pointer', borderColor: pendingCount > 0 ? '#F59E0B' : undefined }}
+          >
+            <div className="stat-icon-circle stat-icon-amber">
+              <i className="bi bi-person-check-fill"></i>
+            </div>
+            <div className="stat-label">Pending Approval</div>
+            <div className="stat-trend" style={{ color: '#D97706' }}>Requires Verification</div>
+            <h3 className="stat-value" style={{ color: pendingCount > 0 ? '#B45309' : '#1E293B' }}>{pendingCount}</h3>
+          </div>
+        </div>
       </div>
       )}
 
@@ -667,7 +744,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
 
             {/* ROLE FILTER TABS */}
             {currentTab === 'dashboard' && <div className="btn-group" role="group">
-              {(['all', 'admin', 'staff', 'coach', 'student'] as const).map(tab => (
+              {(['all', 'admin', 'staff', 'coach', 'student', 'pending'] as const).map(tab => (
                 <button
                   key={tab}
                   type="button"
@@ -675,7 +752,11 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                   className={`btn btn-sm ${activeUserTab === tab ? 'btn-dark' : 'btn-outline-secondary'}`}
                   style={{ textTransform: 'capitalize', fontSize: '0.78rem', fontWeight: 600 }}
                 >
-                  {tab === 'all' ? 'All Members' : `${tab}s`}
+                  {tab === 'all'
+                    ? 'All Members'
+                    : tab === 'pending'
+                      ? `Pending Approval (${pendingCount})`
+                      : `${tab}s`}
                 </button>
               ))}
             </div>}
@@ -768,19 +849,29 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                       </td>
                       <td className="text-secondary">{user.department || user.specialization || (user.role === 'admin' ? 'Administration' : 'Athletics')}</td>
                       <td>
-                        <span className="d-inline-flex align-items-center gap-1">
-                          <span
-                            style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: user.is_online ? '#10B981' : '#94A3B8'
-                            }}
-                          />
-                          <small className={user.is_online ? 'text-success fw-semibold' : 'text-muted'}>
-                            {user.is_online ? 'Online' : 'Offline'}
-                          </small>
-                        </span>
+                        {user.status === 'inactive' || !user.is_verified ? (
+                          <span className="badge rounded-pill bg-warning text-dark px-2 py-1">
+                            <i className="bi bi-hourglass-split me-1"></i>Pending Approval
+                          </span>
+                        ) : user.status === 'suspended' ? (
+                          <span className="badge rounded-pill bg-danger text-white px-2 py-1">
+                            <i className="bi bi-slash-circle me-1"></i>Suspended
+                          </span>
+                        ) : (
+                          <span className="d-inline-flex align-items-center gap-1">
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: user.is_online ? '#10B981' : '#94A3B8'
+                              }}
+                            />
+                            <small className={user.is_online ? 'text-success fw-semibold' : 'text-muted'}>
+                              {user.is_online ? 'Active • Online' : 'Active • Offline'}
+                            </small>
+                          </span>
+                        )}
                       </td>
                       <td>
                         {activeLoan ? (
@@ -797,6 +888,10 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           <span className="text-muted small">Managing Equipment Desk</span>
                         ) : user.role === 'admin' ? (
                           <span className="text-muted small">System Management</span>
+                        ) : (!user.is_verified || user.status === 'inactive') ? (
+                          <span className="text-warning small fw-semibold">
+                            <i className="bi bi-shield-exclamation me-1"></i>Awaiting Approval
+                          </span>
                         ) : (
                           <span className="text-muted small">No active transaction</span>
                         )}
@@ -806,6 +901,25 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({
                           <span className="badge bg-secondary px-2 py-1 text-white" style={{ fontSize: '0.72rem' }}>
                             <i className="bi bi-shield-fill-check me-1"></i>Primary Admin
                           </span>
+                        ) : (!user.is_verified || user.status === 'inactive') ? (
+                          <div className="d-inline-flex align-items-center gap-1">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
+                              onClick={() => void handleVerifyUser(user.id)}
+                              title="Approve this account"
+                            >
+                              <i className="bi bi-check-circle"></i> Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                              onClick={() => void handleRejectUser(user)}
+                              title="Reject registration"
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          </div>
                         ) : (
                           <button
                             type="button"

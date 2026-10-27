@@ -79,7 +79,7 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
       setTransactions(data.transactions);
       setBookings(data.bookings);
       setReports(data.reports);
-      setRegisteredBorrowers(data.users.filter(user => user.status === 'active'));
+      setRegisteredBorrowers(data.users.filter(user => user.status === 'active' && user.is_verified));
     } catch (error: unknown) {
       showToast(error instanceof Error ? error.message : 'Could not load staff dashboard data.');
     }
