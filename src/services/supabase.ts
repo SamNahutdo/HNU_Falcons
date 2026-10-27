@@ -327,7 +327,10 @@ export const authService = {
 
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = fullName.trim();
-    const trimmedId = schoolId.trim().slice(0, 15);
+    const trimmedId = schoolId.trim().toUpperCase();
+    if (trimmedId && !/^[A-Z0-9-]{6,15}$/.test(trimmedId)) {
+      throw new Error('ID must be 6 to 15 characters and contain only letters, numbers, or hyphens.');
+    }
 
     const client = getIsolatedSupabaseClient();
 

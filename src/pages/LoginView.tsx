@@ -102,8 +102,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
         window.crypto.getRandomValues(randomValue);
         return `2026${String((randomValue[0] % 90000) + 10000)}`;
       })();
-      if (finalSchoolId.length > 15) {
-        throw new Error('ID must be 15 characters or less.');
+      if (!/^[A-Za-z0-9-]{6,15}$/.test(finalSchoolId)) {
+        throw new Error('ID must be 6 to 15 characters and contain only letters, numbers, or hyphens.');
       }
 
       const registration = await authService.registerUser({
