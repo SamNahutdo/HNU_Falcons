@@ -57,7 +57,7 @@ Staff can manage inventory and equipment checkouts and returns. Coaches and stud
 </tr>
 </table>
 
----
+----
 
 ## 🔄 System Architecture & How It Works
 
