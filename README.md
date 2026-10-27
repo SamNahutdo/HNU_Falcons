@@ -276,7 +276,7 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 | :---: | :---: | :--- |
 | **Sam Udtohan** | **Backend & Database** | Database design, Supabase integration, and application data workflows. |
 | **Rizamae Velasco** | **Database Management** | Database schema design and database automation. |
-| **Ace Arcamo** | **Frontend** | UI/UX engineering, React components and dashboards. |
+| **Ace Arcamo** | **Frontend** | UI designing, and dashboards. |
 
 </div>
 
