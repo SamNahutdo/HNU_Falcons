@@ -132,7 +132,7 @@ async function getActiveProfile(authUid: string, userEmail?: string) {
           full_name: userEmail.split('@')[0],
           school_id: schoolId,
           role_id: defaultRoleId,
-          status: 'active'
+          status: 'inactive'
         })
         .select('id, full_name, email, school_id, status, role:roles(name)')
         .maybeSingle();
@@ -385,7 +385,7 @@ export const authService = {
           school_id: trimmedId,
           full_name: trimmedName,
           role_id: ROLE_IDS[role],
-          status: 'active'
+          status: 'inactive'
         })
         .eq('id', existingUser.id);
       publicUserId = existingUser.id;
@@ -398,7 +398,7 @@ export const authService = {
           full_name: trimmedName,
           school_id: trimmedId,
           role_id: ROLE_IDS[role],
-          status: 'active'
+          status: 'inactive'
         })
         .select()
         .single();
