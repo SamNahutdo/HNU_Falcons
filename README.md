@@ -266,7 +266,7 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 | `npm run build` | Runs TypeScript checks and creates the production build in `dist/`. |
 | `npm run preview` | Previews the production build locally. |
 
----
+----
 
 ## 👨‍💻 Development Team
 
@@ -275,7 +275,7 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 | Member | Assigned Specialty | Core Contributions |
 | :---: | :---: | :--- |
 | **Sam Udtohan** | **Backend & Database** | Database design, Supabase integration, and application data workflows. |
-| **Rizamae Velasco** | **Database Management* | Database schema design and database automation. |
+| **Rizamae Velasco** | **Database Management** | Database schema design and database automation. |
 | **Ace Arcamo** | **Frontend** | UI/UX engineering, React components and dashboards. |
 
 </div>
