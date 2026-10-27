@@ -29,7 +29,7 @@
 > [!NOTE]
 > **Academic Project Notice**: FalconSystem is an athletic equipment and resource management application built with React, TypeScript, Vite, and Supabase. The repository includes a PostgreSQL schema with database views, functions, and triggers.
 
----
+----
 
 ## 📌 Executive Summary
 
