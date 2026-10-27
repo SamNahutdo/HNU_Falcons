@@ -297,23 +297,33 @@ export const authService = {
     }
   },
 
-  /** Register a student; the auth trigger creates the inactive public profile for admin review. */
+  /** Register a student; the auth trigger creates the inactive profile for admin review. */
   async registerUser({
     email,
     password,
     fullName,
-    schoolId
+    schoolId,
+    role = 'student'
   }: {
     email: string;
     password: string;
     fullName: string;
     schoolId: string;
+    role?: 'student' | 'coach' | 'staff';
   }) {
+    if (role !== 'student') {
+      throw new Error('Public registration is limited to student accounts. Contact an administrator for coach or staff access.');
+    }
+
     const trimmedEmail = email.trim().toLowerCase();
     const trimmedName = fullName.trim();
     const trimmedId = schoolId.trim();
+    if (!/^\d{7,15}$/.test(trimmedId)) {
+      throw new Error('Student ID must contain 7 to 15 digits.');
+    }
 
     const client = getIsolatedSupabaseClient();
+
     const { data: signUpData, error: signUpError } = await client.auth.signUp({
       email: trimmedEmail,
       password,
@@ -347,7 +357,7 @@ export const authService = {
   },
 
   async registerStudent(email: string, password: string, fullName: string, schoolId: string) {
-    return this.registerUser({ email, password, fullName, schoolId });
+    return this.registerUser({ email, password, fullName, schoolId, role: 'student' });
   },
 
   async signOut(): Promise<void> {
