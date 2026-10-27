@@ -9,7 +9,13 @@ import {
   CheckCircle,
   Layers,
   AlertTriangle,
-  Trophy
+  Trophy,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  RotateCcw,
+  SlidersHorizontal,
+  X
 } from 'lucide-react';
 import { Equipment, Sport, UserRole } from '../types/database';
 import { databaseService } from '../services/supabase';
@@ -30,6 +36,9 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [selectedCondition, setSelectedCondition] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'name' | 'equipment_code' | 'category' | 'available_quantity' | 'condition' | 'status'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Modal states
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -61,15 +70,60 @@ export const EquipmentView: React.FC<EquipmentViewProps> = ({
   const availableUnits = equipmentList.reduce((sum, eq) => sum + eq.available_quantity, 0);
   const lowStockCount = equipmentList.filter(eq => eq.status === 'low_stock' || eq.status === 'out_of_stock').length;
 
-  const filteredEquipment = equipmentList.filter((eq) => {
-    const matchesSearch =
-      eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      eq.equipment_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      eq.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSport = selectedSport === 'all' || eq.sport_id === selectedSport;
-    const matchesStatus = selectedStatus === 'all' || eq.status === selectedStatus;
-    return matchesSearch && matchesSport && matchesStatus;
-  });
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    selectedSport !== 'all' ||
+    selectedStatus !== 'all' ||
+    selectedCondition !== 'all' ||
+    sortBy !== 'name' ||
+    sortOrder !== 'asc';
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSelectedSport('all');
+    setSelectedStatus('all');
+    setSelectedCondition('all');
+    setSortBy('name');
+    setSortOrder('asc');
+  };
+
+  const handleSort = (field: 'name' | 'equipment_code' | 'category' | 'available_quantity' | 'condition' | 'status') => {
+    if (sortBy === field) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const filteredEquipment = [...equipmentList]
+    .filter((eq) => {
+      const matchesSearch =
+        eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eq.equipment_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eq.category.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSport = selectedSport === 'all' || eq.sport_id === selectedSport;
+      const matchesStatus = selectedStatus === 'all' || eq.status === selectedStatus;
+      const matchesCondition = selectedCondition === 'all' || eq.condition === selectedCondition;
+      return matchesSearch && matchesSport && matchesStatus && matchesCondition;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === 'name') {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortBy === 'equipment_code') {
+        comparison = a.equipment_code.localeCompare(b.equipment_code);
+      } else if (sortBy === 'category') {
+        comparison = a.category.localeCompare(b.category);
+      } else if (sortBy === 'available_quantity') {
+        comparison = a.available_quantity - b.available_quantity;
+      } else if (sortBy === 'condition') {
+        comparison = a.condition.localeCompare(b.condition);
+      } else if (sortBy === 'status') {
+        comparison = a.status.localeCompare(b.status);
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -214,7 +214,6 @@ Checkout and return dialogs are implemented in [`src/components/CheckoutModal.ts
 * Supabase Auth configured for the approved user accounts
 
 ### 2. Installation Steps
-
 ```bash
 # 1. Install dependencies
 npm ci
@@ -285,3 +284,9 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 <div align="center">
   <sub>FalconSystem • Advanced Database Systems (IM101a) • Academic Project</sub>
 </div>
+
+
+
+
+
+erknviejivebiveb
