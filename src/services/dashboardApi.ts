@@ -57,6 +57,9 @@ function getLocalAlerts(): ReturnAlert[] {
 function saveLocalAlerts(alerts: ReturnAlert[]) {
   try {
     localStorage.setItem(ALERTS_CACHE_KEY, JSON.stringify(alerts));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('falcon_alerts_updated', { detail: alerts }));
+    }
   } catch {}
 }
 
@@ -584,15 +587,25 @@ export const dashboardApi = {
     return { success: true };
   },
 
-  async sendReturnAlert(transaction_id: string, message?: string) {
+  async sendReturnAlert(
+    transaction_id: string,
+    message?: string,
+    details?: {
+      recipient_name?: string;
+      recipient_school_id?: string;
+      recipient_role?: 'student' | 'coach';
+      equipment_name?: string;
+      expected_return_date?: string;
+    }
+  ) {
     const client = requireSupabaseClient();
 
     // Look up transaction to fetch borrower details
-    let recipientName = 'Borrower';
-    let recipientSchoolId = '';
-    let recipientRole: 'student' | 'coach' = 'student';
-    let equipmentName = 'Borrowed sports equipment';
-    let expectedReturnDate = new Date().toISOString().slice(0, 10);
+    let recipientName = details?.recipient_name || 'Borrower';
+    let recipientSchoolId = details?.recipient_school_id || '';
+    let recipientRole: 'student' | 'coach' = details?.recipient_role || 'student';
+    let equipmentName = details?.equipment_name || 'Borrowed sports equipment';
+    let expectedReturnDate = details?.expected_return_date || new Date().toISOString().slice(0, 10);
     let recipientUserId = '';
 
     try {
@@ -623,6 +636,19 @@ export const dashboardApi = {
       }
     } catch (err) {
       console.warn('[dashboardApi] Error fetching transaction for alert:', err);
+    }
+
+    if (details?.recipient_name && (recipientName === 'Borrower' || !recipientName)) {
+      recipientName = details.recipient_name;
+    }
+    if (details?.recipient_school_id && !recipientSchoolId) {
+      recipientSchoolId = details.recipient_school_id;
+    }
+    if (details?.equipment_name && equipmentName === 'Borrowed sports equipment') {
+      equipmentName = details.equipment_name;
+    }
+    if (details?.expected_return_date && !expectedReturnDate) {
+      expectedReturnDate = details.expected_return_date;
     }
 
     const alertMessage = message || `Please return ${equipmentName} by ${expectedReturnDate}.`;

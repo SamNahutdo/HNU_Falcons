@@ -105,12 +105,19 @@ export const StaffDashboardView: React.FC<StaffDashboardViewProps> = ({ currentT
 
   // 1. Alert Student or Coach regarding return deadline
   const handleSendAlert = async (tx: BorrowingTransaction) => {
-    const defaultMsg = `Please return ${tx.items?.map(item => item.equipment?.name).filter(Boolean).join(', ') || 'borrowed sports equipment'} by ${tx.expected_return_date}.`;
+    const eqName = tx.items?.map(item => item.equipment?.name).filter(Boolean).join(', ') || tx.remarks || 'borrowed sports equipment';
+    const defaultMsg = `Please return ${eqName} by ${tx.expected_return_date}.`;
     const customMsg = window.prompt(`Send return deadline alert to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''}):`, defaultMsg);
     if (customMsg === null) return;
 
     try {
-      await dashboardApi.sendReturnAlert(tx.id, customMsg.trim() || defaultMsg);
+      await dashboardApi.sendReturnAlert(tx.id, customMsg.trim() || defaultMsg, {
+        recipient_name: tx.borrower_name,
+        recipient_school_id: tx.borrower_school_id,
+        recipient_role: tx.borrower_role,
+        equipment_name: eqName,
+        expected_return_date: tx.expected_return_date
+      });
       showToast(`Return alert dispatched to ${tx.borrower_name || 'Borrower'} (${tx.borrower_school_id || ''})`);
       await loadAll();
     } catch (error: unknown) {

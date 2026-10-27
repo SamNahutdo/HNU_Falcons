@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
 import { dashboardApi } from '../services/dashboardApi';
+import { authService } from '../services/supabase';
 import { Equipment, CoachBooking, Coach, ReturnAlert, BorrowingTransaction } from '../types/database';
 
 interface StudentDashboardViewProps {
@@ -43,22 +44,48 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
 
   const loadData = async () => {
     try {
-      const data = await dashboardApi.getData();
+      const [data, profile] = await Promise.all([
+        dashboardApi.getData(),
+        authService.getCurrentProfile().catch(() => null)
+      ]);
+
       setEquipmentList(data.equipment);
       setCoaches(data.coaches);
       setMyBookings(data.bookings);
 
-      const studentLoans = data.transactions.filter(t =>
-        (t.borrower_name && t.borrower_name.toLowerCase() === userDisplayName.toLowerCase()) ||
-        (t.borrower_school_id && username.toLowerCase().includes(t.borrower_school_id.toLowerCase()))
-      );
+      const targetNames = [
+        userDisplayName,
+        profile?.fullName
+      ].filter(Boolean).map(n => n!.trim().toLowerCase());
+
+      const targetSchoolIds = [
+        profile?.schoolId,
+        username
+      ].filter(Boolean).map(s => s!.trim().toLowerCase());
+
+      const targetEmails = [
+        profile?.email,
+        username
+      ].filter(Boolean).map(e => e!.trim().toLowerCase());
+
+      const isUserMatch = (borrowerName?: string, borrowerSchoolId?: string) => {
+        const bName = (borrowerName || '').trim().toLowerCase();
+        const bSchool = (borrowerSchoolId || '').trim().toLowerCase();
+
+        if (bSchool && targetSchoolIds.includes(bSchool)) return true;
+        if (bName && targetNames.includes(bName)) return true;
+        if (bSchool && targetEmails.some(e => e.includes(bSchool) || bSchool.includes(e))) return true;
+        if (bName && targetNames.some(n => n.includes(bName) || bName.includes(n))) return true;
+        return false;
+      };
+
+      const studentLoans = data.transactions.filter(t => isUserMatch(t.borrower_name, t.borrower_school_id));
       setMyLoans(studentLoans);
 
       const studentAlerts = data.alerts.filter(a =>
         !a.is_read && (
-          (a.recipient_name && a.recipient_name.toLowerCase() === userDisplayName.toLowerCase()) ||
-          (a.recipient_school_id && username.toLowerCase().includes(a.recipient_school_id.toLowerCase())) ||
-          studentLoans.some(l => l.id === a.transaction_id)
+          studentLoans.some(l => l.id === a.transaction_id) ||
+          isUserMatch(a.recipient_name, a.recipient_school_id)
         )
       );
       setMyAlerts(studentAlerts);
@@ -71,7 +98,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
     try {
       await dashboardApi.markAlertAsRead(alertId);
       setMyAlerts(prev => prev.filter(a => a.id !== alertId));
-      showToast('Notification acknowledged.');
+      showToast('Return deadline notification acknowledged.');
     } catch {
       setMyAlerts(prev => prev.filter(a => a.id !== alertId));
     }
@@ -88,7 +115,33 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
 
   useEffect(() => {
     void loadData();
-  }, []);
+
+    // Cross-tab synchronization
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'falcon_return_alerts_cache') {
+        void loadData();
+      }
+    };
+
+    // Same-tab synchronization
+    const handleAlertsEvent = () => {
+      void loadData();
+    };
+
+    // Auto-polling for real-time delivery
+    const pollInterval = setInterval(() => {
+      void loadData();
+    }, 5000);
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('falcon_alerts_updated', handleAlertsEvent);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('falcon_alerts_updated', handleAlertsEvent);
+    };
+  }, [userDisplayName, username]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -185,6 +238,16 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
       <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div className="d-flex align-items-center gap-3">
           <h4 className="fw-bold mb-0 text-dark">Student Athlete Portal</h4>
+          {myAlerts.length > 0 && (
+            <span
+              className="badge bg-danger rounded-pill px-3 py-2 fw-bold d-inline-flex align-items-center gap-1 shadow-sm"
+              onClick={() => onNavigate && onNavigate('activity')}
+              style={{ cursor: 'pointer' }}
+              title="Click to view alerts in My Loans"
+            >
+              <i className="bi bi-bell-fill"></i> {myAlerts.length} Action Needed
+            </span>
+          )}
           <button
             type="button"
             className="btn-refresh-modern"
@@ -208,32 +271,68 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
 
       {/* DEADLINE ALERTS FROM STAFF (IF ANY) */}
       {myAlerts.length > 0 && (
-        <div className="alert alert-warning py-3 px-3 mb-4 rounded-3 shadow-sm border-warning">
-          <div className="d-flex align-items-center justify-content-between mb-2">
+        <div
+          className="alert alert-warning py-3 px-3 mb-4 rounded-4 shadow-sm"
+          style={{
+            background: 'linear-gradient(135deg, #FFF1F2 0%, #FEF3C7 100%)',
+            border: '2px solid #EF4444'
+          }}
+        >
+          <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
             <div className="d-flex align-items-center gap-2">
-              <i className="bi bi-bell-fill text-danger fs-5"></i>
-              <span className="fw-bold text-dark">Return Deadline Notification from Equipment Desk</span>
-            </div>
-            <span className="badge bg-danger rounded-pill px-2 py-1">{myAlerts.length} Action Required</span>
-          </div>
-          {myAlerts.map(alt => (
-            <div key={alt.id} className="d-flex justify-content-between align-items-center bg-white p-2 px-3 rounded-2 mb-2 border border-warning-subtle shadow-sm flex-wrap gap-2">
-              <div className="small text-dark">
-                <strong>{alt.equipment_name}</strong>: {alt.message}
-                <div className="text-muted" style={{ fontSize: '0.75rem' }}>
-                  Expected Return: <span className="text-danger fw-semibold">{alt.expected_return_date}</span> · Dispatched: {new Date(alt.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={() => handleDismissAlert(alt.id)}
-                title="Acknowledge & dismiss alert"
+              <span
+                className="d-inline-flex align-items-center justify-content-center bg-danger text-white rounded-circle shadow-sm"
+                style={{ width: '34px', height: '34px' }}
               >
-                <i className="bi bi-check2 me-1"></i>Acknowledge
-              </button>
+                <i className="bi bi-bell-fill fs-6"></i>
+              </span>
+              <div>
+                <h6 className="fw-bold text-danger mb-0">Equipment Desk Return Alert</h6>
+                <small className="text-secondary">Staff has dispatched return notice(s) for your active gear loans</small>
+              </div>
             </div>
-          ))}
+            <div className="d-flex align-items-center gap-2">
+              <span className="badge bg-danger rounded-pill px-3 py-2 fw-bold">
+                {myAlerts.length} Action Required
+              </span>
+              {onNavigate && effectiveTab !== 'my_activity' && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-danger fw-semibold"
+                  onClick={() => onNavigate('activity')}
+                >
+                  <i className="bi bi-clock-history me-1"></i>View Loans
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="d-flex flex-column gap-2">
+            {myAlerts.map(alt => (
+              <div
+                key={alt.id}
+                className="d-flex justify-content-between align-items-center bg-white p-3 rounded-3 border border-danger-subtle shadow-sm flex-wrap gap-2"
+              >
+                <div>
+                  <div className="fw-bold text-dark mb-1">
+                    <i className="bi bi-box-seam text-danger me-1"></i>
+                    {alt.equipment_name}
+                  </div>
+                  <div className="text-dark small mb-1">{alt.message}</div>
+                  <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                    Deadline: <span className="text-danger fw-bold">{alt.expected_return_date}</span> · Sent: {new Date(alt.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger fw-semibold px-3 py-1 text-white shadow-sm"
+                  onClick={() => handleDismissAlert(alt.id)}
+                  title="Acknowledge return notice"
+                >
+                  <i className="bi bi-check2-circle me-1"></i>Acknowledge
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -547,12 +646,36 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ user
                         Quantity: {tx.items?.[0]?.quantity || 1} • Expected Return: <strong>{tx.expected_return_date}</strong>
                       </div>
 
-                      {tx.alert_sent && (
-                        <div className="text-danger small fw-bold mt-2">
-                          <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                          Staff has issued a return notice. Please return to the Equipment Desk.
-                        </div>
-                      )}
+                      {(() => {
+                        const activeAlert = myAlerts.find(a => a.transaction_id === tx.id);
+                        if (!activeAlert && !tx.alert_sent) return null;
+                        return (
+                          <div className="alert alert-danger py-2 px-3 mt-2 mb-0 d-flex justify-content-between align-items-center flex-wrap gap-2 rounded-3 border-danger-subtle">
+                            <div className="small">
+                              <span className="fw-bold text-danger">
+                                <i className="bi bi-exclamation-triangle-fill me-1"></i>
+                                Notice from Staff:
+                              </span>{' '}
+                              <span>{activeAlert?.message || 'Please return this equipment to the desk immediately.'}</span>
+                              {activeAlert?.sent_at && (
+                                <div className="text-muted" style={{ fontSize: '0.72rem' }}>
+                                  Dispatched: {new Date(activeAlert.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              )}
+                            </div>
+                            {activeAlert && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger fw-semibold"
+                                onClick={() => handleDismissAlert(activeAlert.id)}
+                                title="Acknowledge return notice"
+                              >
+                                <i className="bi bi-check2 me-1"></i>Acknowledge
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ))}
                 </div>

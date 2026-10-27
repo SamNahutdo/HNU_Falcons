@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SearchField } from '../components/SearchField';
 import { dashboardApi } from '../services/dashboardApi';
+import { authService } from '../services/supabase';
 import { CoachBooking, Equipment, BorrowingTransaction, ReturnAlert } from '../types/database';
 
 interface CoachDashboardViewProps {
@@ -33,21 +34,47 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
 
   const loadData = async () => {
     try {
-      const data = await dashboardApi.getData();
+      const [data, profile] = await Promise.all([
+        dashboardApi.getData(),
+        authService.getCurrentProfile().catch(() => null)
+      ]);
+
       setBookings(data.bookings);
       setEquipmentList(data.equipment);
 
-      const coachLoans = data.transactions.filter(t =>
-        (t.borrower_name && t.borrower_name.toLowerCase() === userDisplayName.toLowerCase()) ||
-        (t.borrower_school_id && username.toLowerCase().includes(t.borrower_school_id.toLowerCase()))
-      );
+      const targetNames = [
+        userDisplayName,
+        profile?.fullName
+      ].filter(Boolean).map(n => n!.trim().toLowerCase());
+
+      const targetSchoolIds = [
+        profile?.schoolId,
+        username
+      ].filter(Boolean).map(s => s!.trim().toLowerCase());
+
+      const targetEmails = [
+        profile?.email,
+        username
+      ].filter(Boolean).map(e => e!.trim().toLowerCase());
+
+      const isUserMatch = (borrowerName?: string, borrowerSchoolId?: string) => {
+        const bName = (borrowerName || '').trim().toLowerCase();
+        const bSchool = (borrowerSchoolId || '').trim().toLowerCase();
+
+        if (bSchool && targetSchoolIds.includes(bSchool)) return true;
+        if (bName && targetNames.includes(bName)) return true;
+        if (bSchool && targetEmails.some(e => e.includes(bSchool) || bSchool.includes(e))) return true;
+        if (bName && targetNames.some(n => n.includes(bName) || bName.includes(n))) return true;
+        return false;
+      };
+
+      const coachLoans = data.transactions.filter(t => isUserMatch(t.borrower_name, t.borrower_school_id));
       setMyLoans(coachLoans);
 
       const coachAlerts = data.alerts.filter(a =>
         !a.is_read && (
-          (a.recipient_name && a.recipient_name.toLowerCase() === userDisplayName.toLowerCase()) ||
-          (a.recipient_school_id && username.toLowerCase().includes(a.recipient_school_id.toLowerCase())) ||
-          coachLoans.some(l => l.id === a.transaction_id)
+          coachLoans.some(l => l.id === a.transaction_id) ||
+          isUserMatch(a.recipient_name, a.recipient_school_id)
         )
       );
       setMyAlerts(coachAlerts);
@@ -77,7 +104,30 @@ export const CoachDashboardView: React.FC<CoachDashboardViewProps> = ({ userDisp
 
   useEffect(() => {
     void loadData();
-  }, []);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'falcon_return_alerts_cache') {
+        void loadData();
+      }
+    };
+
+    const handleAlertsEvent = () => {
+      void loadData();
+    };
+
+    const pollInterval = setInterval(() => {
+      void loadData();
+    }, 5000);
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('falcon_alerts_updated', handleAlertsEvent);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('falcon_alerts_updated', handleAlertsEvent);
+    };
+  }, [userDisplayName, username]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
