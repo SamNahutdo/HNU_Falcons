@@ -285,11 +285,11 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 
 ***test ka?***
 bawal lang ang admin
-| User         | Password |
-| :---: | :---: | :--- |
-| STAFF-001    | FalconPass2026! |
-| EMP-2018-091 | FalconPass2026! |
-| 2023-10892   | FalconPass2026! |
+| User          | Password        |
+| :---: | :---: |
+| STAFF-001     | FalconPass2026! |
+| EMP-2018-091  | FalconPass2026! |
+| 2023-10892    | FalconPass2026! |
 
 
 <div align="center">
