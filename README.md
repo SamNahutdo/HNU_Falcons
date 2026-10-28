@@ -280,7 +280,17 @@ Dashboard records and actions require the Express API and migrations `001`–`01
 
 </div>
 
-<br>
+
+<div align="center">
+
+***test ka?***
+bawal lang ang admin
+| User         | Password |
+| :---: | :---: | :--- |
+| STAFF-001    | FalconPass2026! |
+| EMP-2018-091 | FalconPass2026! |
+| 2023-10892   | FalconPass2026! |
+
 
 <div align="center">
   <sub>FalconSystem • Advanced Database Systems (IM101a) • Academic Project</sub>
